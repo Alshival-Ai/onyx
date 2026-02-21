@@ -24,7 +24,8 @@ export default function Logo({ folded, size, className }: LogoProps) {
   const unfoldedSize = size ?? LOGO_UNFOLDED_SIZE_PX;
   const settings = useSettingsContext();
   const logoDisplayStyle = settings.enterpriseSettings?.logo_display_style;
-  const applicationName = settings.enterpriseSettings?.application_name;
+  const applicationName =
+    settings.enterpriseSettings?.application_name || "StarwoodGPT";
 
   const logo = useMemo(
     () =>
@@ -77,7 +78,7 @@ export default function Logo({ folded, size, className }: LogoProps) {
             )}
             nowrap
           >
-            Powered by Onyx
+            Powered by StarwoodGPT
           </Text>
         )}
       </div>

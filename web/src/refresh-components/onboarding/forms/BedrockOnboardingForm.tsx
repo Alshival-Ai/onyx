@@ -201,7 +201,7 @@ function BedrockFormFields(props: OnboardingFormChildProps<BedrockFormValues>) {
             <SvgAlertCircle className="h-4 w-4 stroke-text-03" />
           </div>
           <Text as="p" text04 mainUiBody>
-            Onyx will use the IAM role attached to the environment it&apos;s
+            StarwoodGPT will use the IAM role attached to the environment it&apos;s
             running in to authenticate.
           </Text>
         </div>

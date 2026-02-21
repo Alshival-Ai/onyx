@@ -1001,6 +1001,29 @@ MCP_SERVER_CORS_ORIGINS = [
     if origin.strip()
 ]
 
+# MCP rotating API key settings
+MCP_ROTATING_KEY_ENABLED = (
+    os.environ.get("MCP_ROTATING_KEY_ENABLED", "").lower() == "true"
+)
+MCP_ROTATING_KEY_FORCE_REFRESH_ON_STARTUP = (
+    os.environ.get("MCP_ROTATING_KEY_FORCE_REFRESH_ON_STARTUP", "").lower() == "true"
+)
+MCP_ROTATING_KEY_LENGTH = int(os.environ.get("MCP_ROTATING_KEY_LENGTH", "32"))
+MCP_ROTATING_KEY_TTL_SECONDS = int(
+    os.environ.get("MCP_ROTATING_KEY_TTL_SECONDS", str(8 * 60 * 60))
+)
+MCP_ROTATING_KEY_PREVIOUS_TTL_SECONDS = int(
+    os.environ.get("MCP_ROTATING_KEY_PREVIOUS_TTL_SECONDS", str(2 * 60 * 60))
+)
+MCP_API_KEY_HEADER = os.environ.get("MCP_API_KEY_HEADER", "x-api-key")
+MCP_SERVER_NAME = os.environ.get("MCP_SERVER_NAME", "Zendesk KB MCP")
+MCP_SERVER_DESCRIPTION = os.environ.get(
+    "MCP_SERVER_DESCRIPTION", "Zendesk knowledge base MCP server"
+)
+MCP_SERVER_OWNER_EMAIL = os.environ.get("MCP_SERVER_OWNER_EMAIL", "")
+MCP_SERVER_TRANSPORT = os.environ.get("MCP_SERVER_TRANSPORT", "STREAMABLE_HTTP")
+MCP_SERVER_URL = f"{WEB_DOMAIN}/mcp/"
+
 
 POD_NAME = os.environ.get("POD_NAME")
 POD_NAMESPACE = os.environ.get("POD_NAMESPACE")

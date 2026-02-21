@@ -45,3 +45,48 @@ downloaded during the initial setup. Feel free to edit the .env file to customiz
 located near the top of the file.
 
 IMAGE_TAG is the version of Onyx to run. It is recommended to leave it as latest to get all updates with each redeployment.
+
+## Enabling Craft in Source-Based Dev Deployments
+
+If you are running from source with `docker-compose.yml` / `docker-compose.dev.yml` (instead of prebuilt `craft-latest` images), you must enable Craft in both runtime env and backend image build.
+
+1. Set the following in `deployment/docker_compose/.env`:
+
+```bash
+ENABLE_CRAFT=true
+CODE_INTERPRETER_BETA_ENABLED=true
+CODE_INTERPRETER_BASE_URL=http://code-interpreter:8000
+```
+
+2. Rebuild backend images with Craft enabled at build-time (preferred via `tools/bake.sh`):
+
+```bash
+ENABLE_CRAFT=true ./tools/bake.sh backend --compose-restart --compose-file docker-compose.dev.yml
+```
+
+Compose fallback (equivalent explicit commands):
+
+```bash
+cd deployment/docker_compose
+ENABLE_CRAFT=true docker compose -f docker-compose.yml -f docker-compose.dev.yml build api_server background mcp_server
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --force-recreate api_server background mcp_server code-interpreter web_server nginx
+```
+
+3. Verify health:
+
+```bash
+docker exec onyx-api_server-1 env | grep -E 'ENABLE_CRAFT|CODE_INTERPRETER_BASE_URL'
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --tail=120 code-interpreter
+docker exec onyx-api_server-1 python -c "import urllib.request; print(urllib.request.urlopen('http://code-interpreter:8000/health').read().decode())"
+```
+
+Expected code-interpreter health response:
+
+```json
+{"status":"ok"}
+```
+
+Notes:
+- The first Craft startup can take several minutes while template dependencies are prepared.
+- In this dev stack, app traffic should be checked via the dev domain (`https://dev.starwoodgpt.prosourceit.app/`) instead of raw localhost routes.
+- To force a one-time web template dependency refresh, set `CRAFT_FORCE_TEMPLATE_NPM_INSTALL=true` for the startup.

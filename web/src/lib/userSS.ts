@@ -2,7 +2,11 @@ import { cookies } from "next/headers";
 import { User } from "./types";
 import { buildUrl, UrlBuilder } from "./utilsSS";
 import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
-import { AuthType, NEXT_PUBLIC_CLOUD_ENABLED } from "./constants";
+import {
+  AuthType,
+  NEXT_PUBLIC_CLOUD_ENABLED,
+  NEXT_PUBLIC_OIDC_LOGIN_PROVIDER,
+} from "./constants";
 
 export interface AuthTypeMetadata {
   authType: AuthType;
@@ -39,11 +43,17 @@ export const getAuthTypeMetadataSS = async (): Promise<AuthTypeMetadata> => {
   }
 
   // for SAML / OIDC, we auto-redirect the user to the IdP when the user visits
-  // Onyx in an un-authenticated state
+  // StarwoodGPT in an un-authenticated state
   if (authType === AuthType.OIDC || authType === AuthType.SAML) {
+    const shouldAutoRedirect =
+      authType === AuthType.OIDC &&
+      NEXT_PUBLIC_OIDC_LOGIN_PROVIDER?.toLowerCase() === "microsoft"
+        ? false
+        : true;
+
     return {
       authType,
-      autoRedirect: true,
+      autoRedirect: shouldAutoRedirect,
       requiresVerification: data.requires_verification,
       anonymousUserEnabled: data.anonymous_user_enabled,
       passwordMinLength: data.password_min_length,

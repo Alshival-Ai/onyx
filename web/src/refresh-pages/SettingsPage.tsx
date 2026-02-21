@@ -54,12 +54,6 @@ import ColorSwatch from "@/refresh-components/ColorSwatch";
 import EmptyMessage from "@/refresh-components/EmptyMessage";
 import Memories from "@/sections/settings/Memories";
 import { FederatedConnectorOAuthStatus } from "@/components/chat/FederatedOAuthModal";
-import {
-  CHAT_BACKGROUND_OPTIONS,
-  CHAT_BACKGROUND_NONE,
-} from "@/lib/constants/chatBackgrounds";
-import { SvgCheck } from "@opal/icons";
-import { cn } from "@/lib/utils";
 import { Interactive } from "@opal/core";
 import { usePaidEnterpriseFeaturesEnabled } from "@/components/settings/usePaidEnterpriseFeaturesEnabled";
 
@@ -182,7 +176,6 @@ function GeneralSettings() {
     user,
     updateUserPersonalization,
     updateUserThemePreference,
-    updateUserChatBackground,
   } = useUser();
   const { theme, setTheme, systemTheme } = useTheme();
   const { refreshChatSessions } = useChatSessions();
@@ -364,56 +357,6 @@ function GeneralSettings() {
                 </InputSelect.Content>
               </InputSelect>
             </InputLayouts.Horizontal>
-            <InputLayouts.Vertical title="Chat Background">
-              <div className="flex flex-wrap gap-2">
-                {CHAT_BACKGROUND_OPTIONS.map((bg) => {
-                  const currentBackgroundId =
-                    user?.preferences?.chat_background ?? "none";
-                  const isSelected = currentBackgroundId === bg.id;
-                  const isNone = bg.src === CHAT_BACKGROUND_NONE;
-
-                  return (
-                    <button
-                      key={bg.id}
-                      onClick={() =>
-                        updateUserChatBackground(
-                          bg.id === CHAT_BACKGROUND_NONE ? null : bg.id
-                        )
-                      }
-                      className="relative overflow-hidden rounded-lg transition-all w-[90px] h-[68px] cursor-pointer border-none p-0 bg-transparent group"
-                      title={bg.label}
-                      aria-label={`${bg.label} background${
-                        isSelected ? " (selected)" : ""
-                      }`}
-                    >
-                      {isNone ? (
-                        <div className="absolute inset-0 bg-background flex items-center justify-center">
-                          <span className="text-xs text-text-02">None</span>
-                        </div>
-                      ) : (
-                        <div
-                          className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                          style={{ backgroundImage: `url(${bg.thumbnail})` }}
-                        />
-                      )}
-                      <div
-                        className={cn(
-                          "absolute inset-0 transition-all rounded-lg",
-                          isSelected
-                            ? "ring-2 ring-inset ring-theme-primary-05"
-                            : "ring-1 ring-inset ring-border-02 group-hover:ring-border-03"
-                        )}
-                      />
-                      {isSelected && (
-                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-theme-primary-05 flex items-center justify-center">
-                          <SvgCheck className="w-2.5 h-2.5 stroke-text-inverted-05" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </InputLayouts.Vertical>
           </Card>
         </Section>
 
@@ -780,7 +723,7 @@ function ChatPreferencesSettings() {
         <Card>
           <InputLayouts.Horizontal
             title="Default Model"
-            description="This model will be used by Onyx by default in your chats."
+            description="This model will be used by StarwoodGPT by default in your chats."
           >
             <LLMPopover
               llmManager={llmManager}
@@ -849,7 +792,7 @@ function ChatPreferencesSettings() {
         <Card>
           <InputLayouts.Horizontal
             title="Reference Stored Memories"
-            description="Let Onyx reference stored memories in chats."
+            description="Let StarwoodGPT reference stored memories in chats."
           >
             <Switch
               checked={personalizationValues.use_memories}
@@ -861,7 +804,7 @@ function ChatPreferencesSettings() {
           </InputLayouts.Horizontal>
           <InputLayouts.Horizontal
             title="Update Memories"
-            description="Let Onyx generate and update stored memories."
+            description="Let StarwoodGPT generate and update stored memories."
           >
             <Switch
               checked={personalizationValues.enable_memory_tool}
@@ -1100,7 +1043,7 @@ function AccountsAccessSettings() {
               Any application using the token{" "}
               <Text className="!font-bold">{tokenToDelete.name}</Text>{" "}
               <Text secondaryMono>({tokenToDelete.token_display})</Text> will
-              lose access to Onyx. This action cannot be undone.
+              lose access to StarwoodGPT. This action cannot be undone.
             </Text>
             <Text>Are you sure you want to revoke this token?</Text>
           </Section>
@@ -1406,7 +1349,7 @@ function FederatedConnectorCard({
         >
           <Section gap={0.5} alignItems="start">
             <Text>
-              Onyx will no longer be able to access or search content from your{" "}
+              StarwoodGPT will no longer be able to access or search content from your{" "}
               <Text className="!font-bold">{sourceMetadata.displayName}</Text>{" "}
               account.
             </Text>

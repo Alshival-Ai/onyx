@@ -10,6 +10,9 @@ founders@onyx.app for more information. Please visit https://github.com/onyx-dot
 # Build argument for Craft support (disabled by default)
 # Use --build-arg ENABLE_CRAFT=true to include Node.js and opencode CLI
 ARG ENABLE_CRAFT=false
+# Playwright browser/deps install is not required for normal API/background/MCP runtime.
+# Keep disabled by default to avoid apt mirror/signature issues during image builds.
+ARG INSTALL_PLAYWRIGHT=false
 
 # DO_NOT_TRACK is used to disable telemetry for Unstructured
 ENV DANSWER_RUNNING_IN_DOCKER="true" \
@@ -76,8 +79,11 @@ RUN uv pip install --system --no-cache-dir --upgrade \
         -r /tmp/requirements.txt \
         -r /tmp/ee-requirements.txt && \
     pip uninstall -y py && \
-    playwright install chromium && \
-    playwright install-deps chromium && \
+    if [ "$INSTALL_PLAYWRIGHT" = "true" ]; then \
+        playwright install chromium && \
+        playwright install-deps chromium; \
+    fi && \
+    mkdir -p /app && \
     chown -R onyx:onyx /app && \
     ln -s /usr/local/bin/supervisord /usr/bin/supervisord && \
     # Cleanup for CVEs and size reduction

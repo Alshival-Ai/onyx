@@ -36,6 +36,24 @@ export const CHAT_BACKGROUND_OPTIONS: ChatBackgroundOption[] = [
     label: "Plants",
   },
   {
+    id: "plants2",
+    src: "/chat-backgrounds/Plants2.jpeg",
+    thumbnail: "/chat-backgrounds/thumbnails/plants2.jpg",
+    label: "Plants 2",
+  },
+  {
+    id: "plants3",
+    src: "/chat-backgrounds/plants3.jpeg",
+    thumbnail: "/chat-backgrounds/thumbnails/plants3.jpg",
+    label: "Plants 3",
+  },
+  {
+    id: "waterfall",
+    src: "/chat-backgrounds/Waterfall.jpeg?v=20260220-2",
+    thumbnail: "/chat-backgrounds/thumbnails/waterfall.jpg?v=20260220-2",
+    label: "Waterfall",
+  },
+  {
     id: "mountains",
     src: "/chat-backgrounds/mountains.jpg",
     thumbnail: "/chat-backgrounds/thumbnails/mountains.jpg",

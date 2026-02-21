@@ -33,6 +33,7 @@ mcp_server = FastMCP(
 # Import tools and resources AFTER mcp_server is created to avoid circular imports
 # Components register themselves via decorators on the shared mcp_server instance
 from onyx.mcp_server.tools import search  # noqa: E402, F401
+from onyx.mcp_server.tools import starwood_productivity  # noqa: E402, F401
 from onyx.mcp_server.resources import indexed_sources  # noqa: E402, F401
 
 logger.info("MCP server instance created")
@@ -48,6 +49,13 @@ def create_mcp_fastapi_app() -> FastAPI:
         """Ensure Accept header includes types required by FastMCP streamable HTTP."""
         if scope.get("type") == "http":
             headers = MutableHeaders(scope=scope)
+            api_key = headers.get("x-api-key")
+            auth_header = headers.get("authorization")
+
+            # Backward-compatibility for legacy MCP clients that still send x-api-key.
+            if api_key and not auth_header:
+                headers["authorization"] = f"Bearer {api_key}"
+
             accept = headers.get("accept", "")
             accept_lower = accept.lower()
 

@@ -61,6 +61,7 @@ export async function fetchSettingsSS(): Promise<CombinedSettings | null> {
           deep_research_enabled: true,
           temperature_override_enabled: true,
           query_history_type: QueryHistoryType.NORMAL,
+          chat_background: null,
         };
       } else {
         throw new Error(

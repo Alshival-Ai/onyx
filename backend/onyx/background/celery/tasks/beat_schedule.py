@@ -132,6 +132,15 @@ beat_task_templates: list[dict] = [
             "queue": OnyxCeleryQueues.MONITORING,
         },
     },
+    {
+        "name": "rotate-mcp-api-key",
+        "task": OnyxCeleryTask.ROTATE_MCP_API_KEY,
+        "schedule": timedelta(hours=6),
+        "options": {
+            "priority": OnyxCeleryPriority.LOW,
+            "expires": BEAT_EXPIRES_DEFAULT,
+        },
+    },
     # Sandbox cleanup tasks
     {
         "name": "cleanup-idle-sandboxes",

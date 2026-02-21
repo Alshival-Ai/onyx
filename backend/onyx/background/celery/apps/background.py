@@ -127,6 +127,7 @@ celery_app.autodiscover_tasks(
             "onyx.background.celery.tasks.llm_model_update",
             # Light worker tasks
             "onyx.background.celery.tasks.shared",
+            "onyx.background.celery.tasks.periodic",
             "onyx.background.celery.tasks.vespa",
             "onyx.background.celery.tasks.connector_deletion",
             "onyx.background.celery.tasks.doc_permission_syncing",

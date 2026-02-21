@@ -28,7 +28,12 @@ from onyx.background.celery.tasks.vespa.document_sync import DOCUMENT_SYNC_PREFI
 from onyx.background.celery.tasks.vespa.document_sync import DOCUMENT_SYNC_TASKSET_KEY
 from onyx.configs.app_configs import DISABLE_VECTOR_DB
 from onyx.configs.app_configs import ENABLE_OPENSEARCH_INDEXING_FOR_ONYX
+from onyx.configs.app_configs import MCP_ROTATING_KEY_ENABLED
+from onyx.configs.app_configs import MCP_ROTATING_KEY_FORCE_REFRESH_ON_STARTUP
 from onyx.configs.constants import ONYX_CLOUD_CELERY_TASK_PREFIX
+from onyx.configs.constants import OnyxCeleryTask
+from onyx.configs.constants import OnyxRedisConstants
+from onyx.configs.constants import ONYX_CLOUD_TENANT_ID
 from onyx.configs.constants import OnyxRedisLocks
 from onyx.db.engine.sql_engine import get_sqlalchemy_engine
 from onyx.document_index.opensearch.client import (
@@ -571,8 +576,31 @@ class LivenessProbe(bootsteps.StartStopStep):
         self.path.touch()
 
 
+class MCPKeyBootstrap(bootsteps.StartStopStep):
+    def start(self, worker: Any) -> None:
+        if not MCP_ROTATING_KEY_ENABLED:
+            return
+        try:
+            redis_client = get_redis_client(tenant_id=ONYX_CLOUD_TENANT_ID)
+            current_key = redis_client.get(OnyxRedisConstants.MCP_API_KEY_CURRENT)
+            if current_key and not MCP_ROTATING_KEY_FORCE_REFRESH_ON_STARTUP:
+                return
+            worker.app.send_task(
+                OnyxCeleryTask.ROTATE_MCP_API_KEY,
+                kwargs={"tenant_id": POSTGRES_DEFAULT_SCHEMA},
+            )
+            if current_key:
+                task_logger.info(
+                    "Enqueued MCP API key bootstrap rotation (forced refresh on startup)."
+                )
+            else:
+                task_logger.info("Enqueued MCP API key bootstrap rotation.")
+        except Exception:
+            task_logger.exception("Failed to enqueue MCP API key bootstrap rotation.")
+
+
 def get_bootsteps() -> list[type]:
-    return [LivenessProbe]
+    return [LivenessProbe, MCPKeyBootstrap]
 
 
 # Task modules that require a vector DB (Vespa/OpenSearch).

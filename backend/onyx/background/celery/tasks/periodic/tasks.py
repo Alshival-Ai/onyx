@@ -1,21 +1,55 @@
 #####
 # Periodic Tasks
 #####
+import datetime
 import json
+import secrets
+import string
 from typing import Any
 
 from celery import shared_task
 from celery.contrib.abortable import AbortableTask  # type: ignore
 from celery.exceptions import TaskRevokedError
 from sqlalchemy import inspect
+from sqlalchemy import select
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from onyx.background.celery.apps.app_base import task_logger
 from onyx.configs.app_configs import JOB_TIMEOUT
+from onyx.configs.app_configs import MCP_API_KEY_HEADER
+from onyx.configs.app_configs import MCP_ROTATING_KEY_ENABLED
+from onyx.configs.app_configs import MCP_ROTATING_KEY_LENGTH
+from onyx.configs.app_configs import MCP_ROTATING_KEY_PREVIOUS_TTL_SECONDS
+from onyx.configs.app_configs import MCP_ROTATING_KEY_TTL_SECONDS
+from onyx.configs.app_configs import MCP_SERVER_DESCRIPTION
+from onyx.configs.app_configs import MCP_SERVER_NAME
+from onyx.configs.app_configs import MCP_SERVER_OWNER_EMAIL
+from onyx.configs.app_configs import MCP_SERVER_TRANSPORT
+from onyx.configs.app_configs import MCP_SERVER_URL
 from onyx.configs.constants import OnyxCeleryTask
+from onyx.configs.constants import OnyxRedisConstants
+from onyx.configs.constants import ONYX_CLOUD_TENANT_ID
 from onyx.configs.constants import PostgresAdvisoryLocks
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
+from onyx.db.engine.sql_engine import get_session_with_tenant
+from onyx.db.enums import MCPAuthenticationPerformer
+from onyx.db.enums import MCPAuthenticationType
+from onyx.db.enums import MCPServerStatus
+from onyx.db.enums import MCPTransport
+from onyx.db.mcp import create_connection_config
+from onyx.db.mcp import create_mcp_server__no_commit
+from onyx.db.mcp import extract_connection_data
+from onyx.db.mcp import get_connection_config_by_id
+from onyx.db.mcp import update_connection_config
+from onyx.db.mcp import update_mcp_server__no_commit
+from onyx.db.models import MCPServer
+from onyx.db.tools import create_tool__no_commit
+from onyx.db.tools import delete_tool__no_commit
+from onyx.db.tools import get_tools_by_mcp_server_id
+from onyx.redis.redis_pool import get_redis_client
+from onyx.tools.tool_implementations.mcp.mcp_client import discover_mcp_tools
+from shared_configs.configs import POSTGRES_DEFAULT_SCHEMA
 
 
 @shared_task(
@@ -136,3 +170,243 @@ def kombu_message_cleanup_task_helper(ctx: dict, db_session: Session) -> bool:
         ctx["last_processed_id"] = msg[0]
 
     return True
+
+
+def _generate_mcp_api_key(length: int) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def _get_transport_from_config() -> MCPTransport:
+    try:
+        return MCPTransport(MCP_SERVER_TRANSPORT)
+    except ValueError:
+        task_logger.warning(
+            "Invalid MCP_SERVER_TRANSPORT=%s, defaulting to STREAMABLE_HTTP",
+            MCP_SERVER_TRANSPORT,
+        )
+        return MCPTransport.STREAMABLE_HTTP
+
+
+def _upsert_mcp_server_config(
+    tenant_id: str | None,
+    api_key: str,
+) -> None:
+    server_url = (MCP_SERVER_URL or "").strip()
+    if not server_url:
+        task_logger.warning("MCP_SERVER_URL is empty; skipping MCP server upsert.")
+        return
+
+    transport = _get_transport_from_config()
+    owner_email = MCP_SERVER_OWNER_EMAIL or "system@local"
+
+    with get_session_with_tenant(
+        tenant_id=tenant_id or POSTGRES_DEFAULT_SCHEMA
+    ) as db_session:
+        server = db_session.scalar(
+            select(MCPServer).where(MCPServer.server_url == server_url)
+        )
+
+        if server is None:
+            server = create_mcp_server__no_commit(
+                owner_email=owner_email,
+                name=MCP_SERVER_NAME,
+                description=MCP_SERVER_DESCRIPTION,
+                server_url=server_url,
+                auth_type=MCPAuthenticationType.API_TOKEN,
+                auth_performer=MCPAuthenticationPerformer.ADMIN,
+                transport=transport,
+                db_session=db_session,
+            )
+            admin_config = create_connection_config(
+                config_data={"headers": {MCP_API_KEY_HEADER: api_key}},
+                mcp_server_id=server.id,
+                db_session=db_session,
+            )
+            update_mcp_server__no_commit(
+                server_id=server.id,
+                db_session=db_session,
+                admin_connection_config_id=admin_config.id,
+                status=MCPServerStatus.CONNECTED,
+            )
+            try:
+                _sync_mcp_tools_for_server(
+                    db_session=db_session,
+                    mcp_server=server,
+                    headers={"headers": {MCP_API_KEY_HEADER: api_key}},
+                )
+            except Exception:
+                task_logger.exception(
+                    "Failed to sync MCP tools for %s during create. "
+                    "Keeping updated MCP API key/header and existing tool snapshots.",
+                    server_url,
+                )
+                update_mcp_server__no_commit(
+                    server_id=server.id,
+                    db_session=db_session,
+                    status=MCPServerStatus.DISCONNECTED,
+                )
+            db_session.commit()
+            task_logger.info("Created MCP server %s", server_url)
+            return
+
+        update_mcp_server__no_commit(
+            server_id=server.id,
+            db_session=db_session,
+            name=MCP_SERVER_NAME,
+            description=MCP_SERVER_DESCRIPTION,
+            server_url=server_url,
+            auth_type=MCPAuthenticationType.API_TOKEN,
+            auth_performer=MCPAuthenticationPerformer.ADMIN,
+            transport=transport,
+            status=MCPServerStatus.CONNECTED,
+        )
+
+        if server.admin_connection_config_id:
+            config = get_connection_config_by_id(
+                server.admin_connection_config_id, db_session
+            )
+            config_data = extract_connection_data(config)
+            config_data["headers"] = {MCP_API_KEY_HEADER: api_key}
+            update_connection_config(config.id, db_session, config_data)
+        else:
+            admin_config = create_connection_config(
+                config_data={"headers": {MCP_API_KEY_HEADER: api_key}},
+                mcp_server_id=server.id,
+                db_session=db_session,
+            )
+            update_mcp_server__no_commit(
+                server_id=server.id,
+                db_session=db_session,
+                admin_connection_config_id=admin_config.id,
+            )
+        try:
+            _sync_mcp_tools_for_server(
+                db_session=db_session,
+                mcp_server=server,
+                headers={"headers": {MCP_API_KEY_HEADER: api_key}},
+            )
+        except Exception:
+            task_logger.exception(
+                "Failed to sync MCP tools for %s during update. "
+                "Keeping updated MCP API key/header and existing tool snapshots.",
+                server_url,
+            )
+            update_mcp_server__no_commit(
+                server_id=server.id,
+                db_session=db_session,
+                status=MCPServerStatus.DISCONNECTED,
+            )
+        db_session.commit()
+
+        task_logger.info("Updated MCP server credentials for %s", server_url)
+
+
+def _sync_mcp_tools_for_server(
+    db_session: Session,
+    mcp_server: MCPServer,
+    headers: dict[str, dict[str, str]],
+) -> None:
+    if mcp_server.transport is None:
+        return
+
+    connection_headers = headers.get("headers", {})
+    discovered_tools = discover_mcp_tools(
+        mcp_server.server_url,
+        connection_headers,
+        transport=mcp_server.transport,
+        auth=None,
+    )
+
+    update_mcp_server__no_commit(
+        server_id=mcp_server.id,
+        db_session=db_session,
+        status=MCPServerStatus.CONNECTED,
+        last_refreshed_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+
+    existing_tools = get_tools_by_mcp_server_id(mcp_server.id, db_session)
+    existing_by_name = {tool.name: tool for tool in existing_tools}
+    processed_names: set[str] = set()
+    db_dirty = False
+
+    for tool in discovered_tools:
+        tool_name = tool.name
+        if not tool_name:
+            continue
+
+        processed_names.add(tool_name)
+        description = tool.description or ""
+        annotations_title = tool.annotations.title if tool.annotations else None
+        display_name = tool.title or annotations_title or tool_name
+        input_schema = tool.inputSchema
+
+        if existing_tool := existing_by_name.get(tool_name):
+            if existing_tool.description != description:
+                existing_tool.description = description
+                db_dirty = True
+            if existing_tool.display_name != display_name:
+                existing_tool.display_name = display_name
+                db_dirty = True
+            if existing_tool.mcp_input_schema != input_schema:
+                existing_tool.mcp_input_schema = input_schema
+                db_dirty = True
+            continue
+
+        new_tool = create_tool__no_commit(
+            name=tool_name,
+            description=description,
+            openapi_schema=None,
+            custom_headers=None,
+            user_id=None,
+            db_session=db_session,
+            passthrough_auth=False,
+            mcp_server_id=mcp_server.id,
+            enabled=True,
+        )
+        new_tool.display_name = display_name
+        new_tool.mcp_input_schema = input_schema
+        db_dirty = True
+
+    for name, db_tool in existing_by_name.items():
+        if name not in processed_names:
+            delete_tool__no_commit(db_tool.id, db_session)
+            db_dirty = True
+
+    if db_dirty:
+        db_session.commit()
+
+
+@shared_task(
+    name=OnyxCeleryTask.ROTATE_MCP_API_KEY,
+    soft_time_limit=JOB_TIMEOUT,
+)
+def rotate_mcp_api_key_task(tenant_id: str | None = None) -> int:
+    if not MCP_ROTATING_KEY_ENABLED:
+        task_logger.info("MCP rotating key disabled. Skipping.")
+        return 0
+
+    redis_client = get_redis_client(tenant_id=ONYX_CLOUD_TENANT_ID)
+    current_key = redis_client.get(OnyxRedisConstants.MCP_API_KEY_CURRENT)
+    if isinstance(current_key, bytes):
+        current_key = current_key.decode("utf-8")
+
+    new_key = _generate_mcp_api_key(MCP_ROTATING_KEY_LENGTH)
+
+    if current_key:
+        redis_client.set(
+            OnyxRedisConstants.MCP_API_KEY_PREVIOUS,
+            current_key,
+            ex=MCP_ROTATING_KEY_PREVIOUS_TTL_SECONDS,
+        )
+
+    redis_client.set(
+        OnyxRedisConstants.MCP_API_KEY_CURRENT,
+        new_key,
+        ex=MCP_ROTATING_KEY_TTL_SECONDS,
+    )
+
+    _upsert_mcp_server_config(tenant_id, new_key)
+
+    task_logger.info("Rotated MCP API key.")
+    return 1

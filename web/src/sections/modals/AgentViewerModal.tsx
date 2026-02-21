@@ -267,7 +267,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
             )}
             <LineItemLayout
               icon={SvgUser}
-              title={agent.owner?.email ?? "Onyx"}
+              title={agent.owner?.email ?? "StarwoodGPT"}
               variant="tertiary-muted"
               width="fit"
             />
@@ -349,7 +349,7 @@ export default function AgentViewerModal({ agent }: AgentViewerModalProps) {
                 {defaultModel && (
                   <Horizontal
                     title="Default Model"
-                    description="This model will be used by Onyx by default in your chats."
+                    description="This model will be used by StarwoodGPT by default in your chats."
                     nonInteractive
                     variant="secondary"
                   >

@@ -1,25 +1,7 @@
-/**
- * SignInButton — renders the SSO / OAuth sign-in button on the login page.
- *
- * IMPORTANT: This component is rendered as part of the /auth/login page, which
- * is used in healthcheck and monitoring flows that issue headless (non-browser)
- * requests (e.g. `curl`). During server-side rendering of those requests,
- * browser-only globals like `window`, `document`, `navigator`, etc. are NOT
- * available. Even though this file is marked "use client", Next.js still
- * executes the component body on the server during SSR — only hooks like
- * `useEffect` are skipped.
- *
- * Do NOT reference `window` or other browser APIs in the render path of this
- * component. If you need browser globals, gate them behind `useEffect` or
- * `typeof window !== "undefined"` checks inside callbacks/effects — but be
- * aware that Turbopack may optimise away bare `typeof window` guards in the
- * SSR bundle, so prefer `useEffect` for safety.
- */
-
 "use client";
 
 import Button from "@/refresh-components/buttons/Button";
-import { AuthType } from "@/lib/constants";
+import { AuthType, NEXT_PUBLIC_OIDC_LOGIN_PROVIDER } from "@/lib/constants";
 import { FcGoogle } from "react-icons/fc";
 import type { IconProps } from "@opal/types";
 
@@ -44,8 +26,63 @@ export default function SignInButton({
     button = "Continue with SAML SSO";
   }
 
+  const url = new URL(authorizeUrl);
+  const finalAuthorizeUrl = url.toString();
+
   if (!button) {
     throw new Error(`Unhandled authType: ${authType}`);
+  }
+
+  const handleOidcClick = async () => {
+    try {
+      const res = await fetch(finalAuthorizeUrl, { credentials: "include" });
+      if (!res.ok) {
+        throw new Error(`OIDC authorize failed: ${res.status}`);
+      }
+      const data = (await res.json()) as { authorization_url?: string };
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+        return;
+      }
+    } catch (err) {
+      console.error("OIDC authorize fetch failed, falling back to direct URL", err);
+    }
+    window.location.href = finalAuthorizeUrl;
+  };
+
+  if (authType === AuthType.OIDC) {
+    if (NEXT_PUBLIC_OIDC_LOGIN_PROVIDER?.toLowerCase() === "microsoft") {
+      return (
+        <button
+          type="button"
+          className="w-full flex justify-center"
+          aria-label="Sign in with Microsoft"
+          onClick={handleOidcClick}
+        >
+          <img
+            src="/ms-sign-in-light.svg"
+            alt="Sign in with Microsoft"
+            className="block dark:hidden h-10 w-full max-w-[320px]"
+          />
+          <img
+            src="/ms-sign-in-dark.svg"
+            alt="Sign in with Microsoft"
+            className="hidden dark:block h-10 w-full max-w-[320px]"
+          />
+        </button>
+      );
+    }
+
+    // Use a button to avoid Next.js prefetch/XHR which breaks OIDC redirects.
+    return (
+      <button
+        type="button"
+        className="p-2 h-fit rounded-12 w-full flex flex-row items-center justify-center gap-1.5 button-main-primary"
+        onClick={handleOidcClick}
+      >
+        <span className="button-main-primary-text">Continue with OIDC SSO</span>
+      </button>
+    );
   }
 
   return (
@@ -55,7 +92,7 @@ export default function SignInButton({
       }
       className="!w-full"
       leftIcon={icon}
-      href={authorizeUrl}
+      href={finalAuthorizeUrl}
     >
       {button}
     </Button>

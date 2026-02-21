@@ -41,6 +41,7 @@ backend = [
     "boto3-stubs[s3]==1.39.11",
     "celery==5.5.1",
     "chardet==5.2.0",
+    "chromadb==0.5.18",
     "chonkie==1.0.10",
     "dask==2026.1.1",
     "ddtrace==3.10.0",

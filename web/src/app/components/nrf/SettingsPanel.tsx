@@ -3,15 +3,10 @@
 import Switch from "@/refresh-components/inputs/Switch";
 import { useNRFPreferences } from "@/components/context/NRFPreferencesContext";
 import Text from "@/refresh-components/texts/Text";
-import { SvgX, SvgSettings, SvgSun, SvgMoon, SvgCheck } from "@opal/icons";
+import { SvgX, SvgSettings, SvgSun, SvgMoon } from "@opal/icons";
 import { Button } from "@opal/components";
 import { cn } from "@/lib/utils";
-import { useUser } from "@/providers/UserProvider";
 import { useTheme } from "next-themes";
-import {
-  CHAT_BACKGROUND_OPTIONS,
-  CHAT_BACKGROUND_NONE,
-} from "@/lib/constants/chatBackgrounds";
 
 interface SettingRowProps {
   label: string;
@@ -35,55 +30,6 @@ const SettingRow = ({ label, description, children }: SettingRowProps) => (
   </div>
 );
 
-interface BackgroundThumbnailProps {
-  thumbnailUrl: string;
-  label: string;
-  isNone?: boolean;
-  isSelected: boolean;
-  onClick: () => void;
-}
-
-const BackgroundThumbnail = ({
-  thumbnailUrl,
-  label,
-  isNone = false,
-  isSelected,
-  onClick,
-}: BackgroundThumbnailProps) => (
-  <button
-    onClick={onClick}
-    className="relative overflow-hidden rounded-xl transition-all aspect-video cursor-pointer border-none p-0 bg-transparent group"
-    title={label}
-    aria-label={`${label} background${isSelected ? " (selected)" : ""}`}
-  >
-    {isNone ? (
-      <div className="absolute inset-0 bg-background flex items-center justify-center">
-        <Text secondaryBody text03>
-          None
-        </Text>
-      </div>
-    ) : (
-      <div
-        className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-        style={{ backgroundImage: `url(${thumbnailUrl})` }}
-      />
-    )}
-    <div
-      className={cn(
-        "absolute inset-0 transition-all rounded-xl",
-        isSelected
-          ? "ring-2 ring-inset ring-theme-primary-05"
-          : "ring-1 ring-inset ring-border-02 group-hover:ring-border-03"
-      )}
-    />
-    {isSelected && (
-      <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-theme-primary-05 flex items-center justify-center">
-        <SvgCheck className="w-3 h-3 stroke-text-inverted-05" />
-      </div>
-    )}
-  </button>
-);
-
 export const SettingsPanel = ({
   settingsOpen,
   toggleSettings,
@@ -95,19 +41,10 @@ export const SettingsPanel = ({
 }) => {
   const { useOnyxAsNewTab } = useNRFPreferences();
   const { theme, setTheme } = useTheme();
-  const { user, updateUserChatBackground } = useUser();
-
-  const currentBackgroundId = user?.preferences?.chat_background ?? "none";
   const isDark = theme === "dark";
 
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark");
-  };
-
-  const handleBackgroundChange = (backgroundId: string) => {
-    updateUserChatBackground(
-      backgroundId === CHAT_BACKGROUND_NONE ? null : backgroundId
-    );
   };
 
   return (
@@ -169,31 +106,12 @@ export const SettingsPanel = ({
               General
             </Text>
             <div className="flex flex-col gap-1 bg-background-tint-01 rounded-2xl px-4">
-              <SettingRow label="Use Onyx as new tab page">
+              <SettingRow label="Use StarwoodGPT as new tab page">
                 <Switch
                   checked={useOnyxAsNewTab}
                   onCheckedChange={handleUseOnyxToggle}
                 />
               </SettingRow>
-            </div>
-          </section>
-
-          {/* Background Section */}
-          <section className="flex flex-col gap-3">
-            <Text secondaryAction text03 className="uppercase tracking-wider">
-              Background
-            </Text>
-            <div className="grid grid-cols-3 gap-2">
-              {CHAT_BACKGROUND_OPTIONS.map((bg) => (
-                <BackgroundThumbnail
-                  key={bg.id}
-                  thumbnailUrl={bg.thumbnail}
-                  label={bg.label}
-                  isNone={bg.src === CHAT_BACKGROUND_NONE}
-                  isSelected={currentBackgroundId === bg.id}
-                  onClick={() => handleBackgroundChange(bg.id)}
-                />
-              ))}
             </div>
           </section>
         </div>

@@ -147,7 +147,7 @@ export default function LicenseActivationCard({
           </Button>
         </Section>
         <Text secondaryBody text03>
-          Manually add and activate a license for this Onyx instance.
+          Manually add and activate a license for this StarwoodGPT instance.
         </Text>
       </Section>
 
@@ -172,7 +172,7 @@ export default function LicenseActivationCard({
             subDescription={
               error
                 ? undefined
-                : "Paste or attach your license key file you received from Onyx."
+                : "Paste or attach your license key file you received from StarwoodGPT."
             }
           >
             <InputFile

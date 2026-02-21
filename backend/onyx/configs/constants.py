@@ -477,6 +477,8 @@ class OnyxRedisSignals:
 
 class OnyxRedisConstants:
     ACTIVE_FENCES = "active_fences"
+    MCP_API_KEY_CURRENT = "mcp_api_key_current"
+    MCP_API_KEY_PREVIOUS = "mcp_api_key_previous"
 
 
 class OnyxCeleryPriority(int, Enum):
@@ -521,6 +523,7 @@ class OnyxCeleryTask:
     CHECK_FOR_DOC_PERMISSIONS_SYNC = "check_for_doc_permissions_sync"
     CHECK_FOR_EXTERNAL_GROUP_SYNC = "check_for_external_group_sync"
     CHECK_FOR_AUTO_LLM_UPDATE = "check_for_auto_llm_update"
+    ROTATE_MCP_API_KEY = "rotate_mcp_api_key"
 
     # User file processing
     CHECK_FOR_USER_FILE_PROCESSING = "check_for_user_file_processing"

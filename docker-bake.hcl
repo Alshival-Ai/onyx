@@ -22,9 +22,26 @@ variable "TAG" {
   default = "latest"
 }
 
+variable "NEXT_PUBLIC_OIDC_LOGIN_PROVIDER" {
+  default = ""
+}
+
+variable "ENABLE_CRAFT" {
+  default = "false"
+}
+
+variable "INSTALL_PLAYWRIGHT" {
+  default = "false"
+}
+
 target "backend" {
   context    = "backend"
   dockerfile = "Dockerfile"
+
+  args = {
+    ENABLE_CRAFT     = "${ENABLE_CRAFT}"
+    INSTALL_PLAYWRIGHT = "${INSTALL_PLAYWRIGHT}"
+  }
 
   cache-from = ["type=registry,ref=${BACKEND_REPOSITORY}:latest"]
   cache-to   = ["type=inline"]
@@ -35,6 +52,10 @@ target "backend" {
 target "web" {
   context    = "web"
   dockerfile = "Dockerfile"
+
+  args = {
+    NEXT_PUBLIC_OIDC_LOGIN_PROVIDER = "${NEXT_PUBLIC_OIDC_LOGIN_PROVIDER}"
+  }
 
   cache-from = ["type=registry,ref=${WEB_SERVER_REPOSITORY}:latest"]
   cache-to   = ["type=inline"]

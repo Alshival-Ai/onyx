@@ -176,7 +176,7 @@ function VertexAIFormFields(
             {!showModelsApiErrorMessage && (
               <FormField.Message
                 messages={{
-                  idle: "This model will be used by Onyx by default.",
+                  idle: "This model will be used by StarwoodGPT by default.",
                   error: meta.error,
                 }}
               />

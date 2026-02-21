@@ -112,7 +112,9 @@ server {
         # we don't want nginx trying to do something clever with
         # redirects, we set the Host: header above already.
         proxy_redirect off;
-        proxy_pass http://localhost:80;
+        # Use IPv4 loopback explicitly so nginx does not resolve localhost to ::1
+        # in containers where IPv6 loopback is not listening.
+        proxy_pass http://127.0.0.1:80;
     }
 
     ssl_certificate /etc/nginx/sslcerts/${SSL_CERT_FILE_NAME};

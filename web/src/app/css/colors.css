@@ -201,29 +201,46 @@
 
 /* Brand Colors */
 :root {
-  /* Onyx / Ink */
-  --onyx-ink-100: #000000;
-  --onyx-ink-95: #1c1c1c;
-  --onyx-ink-90: #333333;
+  /* Starwood / Ink */
+  --starwood-ink-100: #0a1a0f;
+  --starwood-ink-95: #0f2818;
+  --starwood-ink-90: #143520;
 
-  /* Onyx / Chrome */
-  --onyx-chrome-20: #cacaca;
-  --onyx-chrome-10: #e9e9e9;
-  --onyx-chrome-00: #ffffff;
+  /* Starwood / Chrome */
+  --starwood-chrome-20: #c8d4cb;
+  --starwood-chrome-10: #e8f0ea;
+  --starwood-chrome-00: #f8faf8;
+
+  /* Starwood / Forest */
+  --starwood-forest-100: #0a1a0f;
+  --starwood-forest-95: #0f2818;
+  --starwood-forest-90: #143520;
+  --starwood-forest-80: #1a4528;
+  --starwood-forest-70: #215530;
+  --starwood-forest-60: #2a6b3d;
+  --starwood-forest-50: #348149;
+  --starwood-forest-40: #4a9660;
+  --starwood-forest-30: #6aad7a;
+  --starwood-forest-20: #8fc49a;
+  --starwood-forest-10: #c5e2cb;
+  --starwood-forest-05: #e2f1e5;
+
+  /* Exact StarwoodHotels.com primary green */
+  --starwood-site-green-50: #445730;
 
   /* Tint (referencing Stone variables) */
-  --tint-98: var(--stone-98);
-  --tint-95: var(--stone-95);
-  --tint-90: var(--stone-90);
-  --tint-85: var(--stone-85);
-  --tint-80: var(--stone-80);
-  --tint-60: var(--stone-60);
-  --tint-50: var(--stone-50);
-  --tint-40: var(--stone-40);
-  --tint-20: var(--stone-20);
-  --tint-10: var(--stone-10);
-  --tint-05: var(--stone-05);
-  --tint-02: var(--stone-02);
+  --tint-98: #080f0a;
+  --tint-95: #0f1a12;
+  --tint-90: #1a2a1e;
+  --tint-85: #243828;
+  --tint-80: #2e4632;
+  --tint-60: #3d5a42;
+  --tint-50: #5a7a60;
+  --tint-40: #7a9a80;
+  --tint-20: #b0ccb5;
+  --tint-10: #d5e8d8;
+  --tint-05: #e8f3ea;
+  --tint-02: #f5faf6;
 }
 
 /* Light Colors */
@@ -233,11 +250,11 @@
   --shimmer-highlight: #000000;
 
   /* Text */
-  --text-05: var(--alpha-grey-100-90);
-  --text-04: var(--alpha-grey-100-75);
-  --text-03: var(--alpha-grey-100-55);
-  --text-02: var(--alpha-grey-100-45);
-  --text-01: var(--alpha-grey-100-20);
+  --text-05: var(--starwood-forest-40);
+  --text-04: var(--starwood-forest-30);
+  --text-03: var(--starwood-forest-20);
+  --text-02: var(--starwood-forest-10);
+  --text-01: var(--starwood-forest-05);
   --text-inverted-01: var(--alpha-grey-00-20);
   --text-inverted-02: var(--alpha-grey-00-45);
   --text-inverted-03: var(--alpha-grey-00-60);
@@ -290,9 +307,9 @@
   --border-inverted-01: var(--grey-80);
 
   /* Theme */
-  --theme-primary-06: var(--onyx-ink-100);
-  --theme-primary-05: var(--onyx-ink-95);
-  --theme-primary-04: var(--onyx-ink-90);
+  --theme-primary-06: var(--starwood-forest-30);
+  --theme-primary-05: var(--starwood-forest-20);
+  --theme-primary-04: var(--starwood-forest-10);
 
   /* Theme / Gradient */
   --theme-gradient-05: var(--tint-50);
@@ -491,9 +508,9 @@
   --border-inverted-01: var(--grey-10);
 
   /* Theme */
-  --theme-primary-06: var(--onyx-chrome-00);
-  --theme-primary-05: var(--onyx-chrome-10);
-  --theme-primary-04: var(--onyx-chrome-20);
+  --theme-primary-06: var(--starwood-forest-40);
+  --theme-primary-05: var(--starwood-site-green-50);
+  --theme-primary-04: var(--starwood-forest-60);
 
   /* Theme / Gradient */
   --theme-gradient-05: var(--grey-100);

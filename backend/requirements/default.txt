@@ -131,6 +131,8 @@ cffi==2.0.0
     #   zstandard
 chardet==5.2.0
     # via onyx
+chromadb==0.5.18
+    # via onyx
 charset-normalizer==3.4.4
     # via
     #   htmldate

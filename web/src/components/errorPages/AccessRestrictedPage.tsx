@@ -74,14 +74,14 @@ export default function AccessRestricted() {
 
       <Text text03>
         {hasLicenseLapsed
-          ? "Your access to Onyx has been temporarily suspended due to a lapse in your subscription."
-          : "An Enterprise license is required to use Onyx. Your data is protected and will be available once a license is activated."}
+          ? "Your access to StarwoodGPT has been temporarily suspended due to a lapse in your subscription."
+          : "An Enterprise license is required to use StarwoodGPT. Your data is protected and will be available once a license is activated."}
       </Text>
 
       {NEXT_PUBLIC_CLOUD_ENABLED ? (
         <>
           <Text text03>
-            To reinstate your access and continue benefiting from Onyx&apos;s
+            To reinstate your access and continue benefiting from StarwoodGPT&apos;s
             powerful features, please update your payment information.
           </Text>
 
@@ -112,7 +112,7 @@ export default function AccessRestricted() {
         <>
           <Text text03>
             {hasLicenseLapsed
-              ? "To reinstate your access and continue using Onyx, please contact your system administrator to renew your license."
+              ? "To reinstate your access and continue using StarwoodGPT, please contact your system administrator to renew your license."
               : "To get started, please contact your system administrator to obtain an Enterprise license."}
           </Text>
 

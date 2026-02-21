@@ -80,6 +80,9 @@ class Settings(BaseModel):
     # Default Assistant settings
     disable_default_assistant: bool | None = False
 
+    # Global chat background (workspace-level default)
+    chat_background: str | None = None
+
     # OpenSearch migration
     opensearch_indexing_enabled: bool = False
 

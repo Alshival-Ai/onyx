@@ -31,7 +31,7 @@ const SCOPE_OPTIONS: {
   {
     value: "public_org",
     label: "Organization",
-    description: "Anyone logged into your Onyx can view this app.",
+    description: "Anyone logged into your StarwoodGPT can view this app.",
   },
 ];
 

@@ -7,14 +7,84 @@ This file provides guidance to AI agents when working with code in this reposito
 - If you run into any missing python dependency errors, try running your command with `source .venv/bin/activate` \
   to assume the python venv.
 - To make tests work, check the `.env` file at the root of the project to find an OpenAI key.
-- If using `playwright` to explore the frontend, you can usually log in with username `a@example.com` and password
-  `a`. The app can be accessed at `http://localhost:3000`.
+- If using `playwright` to explore the frontend, start the web service with:
+  `./tools/bake.sh web --compose-up --compose-file docker-compose.dev.yml --compose-up-service web_server`.
+  You can usually log in with username `a@example.com` and password `a`. The app can be accessed at
+  `https://dev.starwoodgpt.prosourceit.app/`.
 - You should assume that all Onyx services are running. To verify, you can check the `backend/log` directory to
   make sure we see logs coming out from the relevant service.
 - To connect to the Postgres database, use: `docker exec -it onyx-relational_db-1 psql -U postgres -c "<SQL>"`
-- When making calls to the backend, always go through the frontend. E.g. make a call to `http://localhost:3000/api/persona` not `http://localhost:8080/api/persona`
+- When making calls to the backend, always go through the frontend. E.g. make a call to
+  `https://dev.starwoodgpt.prosourceit.app/api/persona` not `http://localhost:8080/api/persona`
 - Put ALL db operations under the `backend/onyx/db` / `backend/ee/onyx/db` directories. Don't run queries
   outside of those directories.
+
+## STARWOOD DEV OPS NOTES
+
+### Docker / Bake Commands
+
+- Start web service for local/dev verification:
+  - `./tools/bake.sh web --compose-up --compose-file docker-compose.dev.yml --compose-up-service web_server`
+- Restart full dev stack with the dev compose override:
+  - `./tools/bake.sh --compose-restart --compose-file docker-compose.dev.yml`
+- `./tools/bake.sh --compose-restart` and `./tools/bake.sh --compose-restart --compose-file docker-compose.dev.yml` are **not always equivalent**.
+  - Use the explicit `--compose-file docker-compose.dev.yml` form when working on the dev domain/TLS stack.
+- Important: keep the full command on one line (or use `\` line continuations). A broken line like `--compose-up-service` on its own will be treated as a shell command and fail.
+
+### Craft / Code Interpreter Setup (Source Builds)
+
+- For this repo, enabling Craft requires both runtime env flags and a Craft-enabled backend image build.
+- Required `.env` entries in `deployment/docker_compose/.env`:
+  - `ENABLE_CRAFT=true`
+  - `CODE_INTERPRETER_BETA_ENABLED=true`
+  - `CODE_INTERPRETER_BASE_URL=http://code-interpreter:8000`
+- Preferred build + restart path (uses `docker-bake.hcl` and dev compose):
+  - `ENABLE_CRAFT=true ./tools/bake.sh backend --compose-restart --compose-file docker-compose.dev.yml`
+- Compose fallback (if you need explicit direct compose build):
+  - `cd deployment/docker_compose && ENABLE_CRAFT=true docker compose -f docker-compose.yml -f docker-compose.dev.yml build api_server background mcp_server`
+  - `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --force-recreate api_server background mcp_server code-interpreter web_server nginx`
+- Verify:
+  - `docker exec onyx-api_server-1 env | grep -E 'ENABLE_CRAFT|CODE_INTERPRETER_BASE_URL'`
+  - `docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --tail=120 code-interpreter`
+  - `docker exec onyx-api_server-1 python -c "import urllib.request; print(urllib.request.urlopen('http://code-interpreter:8000/health').read().decode())"`
+- Startup performance note:
+  - `backend/scripts/setup_craft_templates.sh` is now idempotent and skips npm reinstall when template deps are already prepared.
+  - Set `CRAFT_FORCE_TEMPLATE_NPM_INSTALL=true` only when you intentionally want to refresh template web deps.
+
+### Domain / Routing / TLS
+
+- Dev app URL:
+  - `https://dev.starwoodgpt.prosourceit.app/`
+- In this project, API and MCP calls should go through the dev domain unless you are intentionally debugging container-internal networking.
+- Quick health checks:
+  - `curl -sS https://dev.starwoodgpt.prosourceit.app/api/health`
+  - `curl -sS https://dev.starwoodgpt.prosourceit.app/mcp/health`
+
+### MCP + Microsoft Tools
+
+- MCP server must be enabled in env (`MCP_SERVER_ENABLED=true`) and running.
+- For mailbox tools, if local snapshots are missing, the Starwood MCP inbox tools are expected to fall back to live Microsoft Graph.
+- If a user says inbox/calendar tools fail:
+  1. Confirm user has a valid OAuth account/token in Onyx.
+  2. Re-auth the Microsoft account if token/scope is stale.
+  3. Start a new chat session after tool/config updates (session-level caching can hide updates).
+
+### Zendesk KB (Important)
+
+- Zendesk KB MCP tools rely on Chroma data and defaults aligned with deprecated setup:
+  - Chroma path default: `onyx/zendesk/chroma`
+  - Collection default: `zendesk_help_center`
+- If `search_kb` fails with `chromadb is not installed`, the backend image/dependencies are out of sync.
+- If `search_kb` returns empty, verify that the Chroma path exists in the running container and contains data.
+- Inventory tool:
+  - MCP tool `list_kb_articles` can return indexed Zendesk articles (`title`, `url`) for validation.
+- Generated inventory snapshot from deprecated data is stored at:
+  - `zendesk_kb_inventory.txt`
+
+### Known Build Pitfall
+
+- In some environments, Docker build may fail during Playwright dependency install with apt signature errors (`repository is not signed`).
+- If this occurs, treat it as an infra/package mirror issue (not an app logic issue), and verify runtime containers directly while infra is fixed.
 
 ## Project Overview
 

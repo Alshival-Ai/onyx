@@ -507,7 +507,7 @@ export type StreamPacket =
   | CurrentModeUpdatePacket
   | PromptResponsePacket
   | ACPErrorPacket
-  // Custom Onyx packets
+  // Custom StarwoodGPT packets
   | StepStartPacket
   | StepDeltaPacket
   | StepEndPacket

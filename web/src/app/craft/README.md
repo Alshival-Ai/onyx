@@ -2,7 +2,7 @@
     <a href="https://www.onyx.app/?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme"> <img width="50%" src="https://github.com/onyx-dot-app/onyx/blob/logo/OnyxLogoCropped.jpg?raw=true" /></a>
 </h2>
 
-<h1 align="center">Onyx Craft</h1>
+<h1 align="center">StarwoodGPT Craft</h1>
 
 <p align="center">
   <strong>Build apps, documents, and presentations from your company knowledge</strong>
@@ -29,7 +29,7 @@
 
 ## Overview
 
-Onyx Craft is an AI coding agent that creates web applications, documents, presentations, and more using your company's indexed knowledge. Users describe what they want in natural language, and the agent builds artifacts in an isolated sandbox environment with access to documents from connected sources like Linear, Slack, Google Drive, Confluence, and more.
+StarwoodGPT Craft is an AI coding agent that creates web applications, documents, presentations, and more using your company's indexed knowledge. Users describe what they want in natural language, and the agent builds artifacts in an isolated sandbox environment with access to documents from connected sources like Linear, Slack, Google Drive, Confluence, and more.
 
 For detailed documentation, visit [our docs](https://docs.onyx.app/overview/core_features/craft).
 
@@ -45,11 +45,11 @@ For detailed documentation, visit [our docs](https://docs.onyx.app/overview/core
 
 ### Requirements
 
-- Onyx deployment with an LLM provider configured (Anthropic, OpenAI, etc.)
+- StarwoodGPT deployment with an LLM provider configured (Anthropic, OpenAI, etc.)
 
 ### New Installations
 
-You can install Onyx Craft using our [quickstart script](https://docs.onyx.app/deployment/getting_started/quickstart):
+You can install StarwoodGPT Craft using our [quickstart script](https://docs.onyx.app/deployment/getting_started/quickstart):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/onyx-dot-app/onyx/main/deployment/docker_compose/install.sh > install.sh \
@@ -69,6 +69,36 @@ Enable Craft on an existing deployment:
 
 ```bash
 ENABLE_CRAFT=true IMAGE_TAG=craft-latest docker compose up -d
+```
+
+### Source-Based Compose Deployments (Local/Custom Forks)
+
+If you run from source (custom fork) and build backend images locally, setting `ENABLE_CRAFT=true` only in `.env` is not enough. The backend image must also be built with Craft enabled so required dependencies (like `opencode`) are present.
+
+```bash
+ENABLE_CRAFT=true ./tools/bake.sh backend --compose-restart --compose-file docker-compose.dev.yml
+```
+
+Compose fallback (equivalent explicit commands):
+
+```bash
+cd deployment/docker_compose
+ENABLE_CRAFT=true docker compose -f docker-compose.yml -f docker-compose.dev.yml build api_server background mcp_server
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --force-recreate api_server background mcp_server code-interpreter web_server nginx
+```
+
+After restart, verify:
+
+```bash
+cd deployment/docker_compose
+docker exec onyx-api_server-1 env | grep ENABLE_CRAFT
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --tail=80 code-interpreter
+```
+
+To force template web dependency reinstallation (normally skipped after first successful setup), set:
+
+```bash
+CRAFT_FORCE_TEMPLATE_NPM_INSTALL=true
 ```
 
 ## How It Works

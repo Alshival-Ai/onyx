@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useMemo } from "react";
-import { useUser } from "@/providers/UserProvider";
+import { useSettingsContext } from "@/providers/SettingsProvider";
 import {
   CHAT_BACKGROUND_NONE,
   getBackgroundById,
@@ -26,10 +26,10 @@ export function AppBackgroundProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useUser();
+  const { settings } = useSettingsContext();
 
   const value = useMemo(() => {
-    const chatBackgroundId = user?.preferences?.chat_background;
+    const chatBackgroundId = settings?.chat_background;
     const appBackground = getBackgroundById(chatBackgroundId ?? null);
     const hasBackground =
       !!appBackground && appBackground.src !== CHAT_BACKGROUND_NONE;
@@ -40,7 +40,7 @@ export function AppBackgroundProvider({
       appBackgroundUrl,
       hasBackground,
     };
-  }, [user?.preferences?.chat_background]);
+  }, [settings?.chat_background]);
 
   return (
     <AppBackgroundContext.Provider value={value}>
