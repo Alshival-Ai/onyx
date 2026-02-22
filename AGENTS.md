@@ -51,6 +51,14 @@ This file provides guidance to AI agents when working with code in this reposito
   - `backend/scripts/setup_craft_templates.sh` is now idempotent and skips npm reinstall when template deps are already prepared.
   - Set `CRAFT_FORCE_TEMPLATE_NPM_INSTALL=true` only when you intentionally want to refresh template web deps.
 
+### Admin IA Notes
+
+- For Starwood admin navigation, keep these entry points under `User Management`:
+  - `Usage Statistics` (`/admin/performance/usage`)
+  - `Query History` (`/admin/performance/query-history`)
+- Keep backend/frontend route paths unchanged (continue using `/admin/performance/*` URLs).
+- `Performance` section (if shown) is reserved for `Custom Analytics`.
+
 ### Domain / Routing / TLS
 
 - Dev app URL:
