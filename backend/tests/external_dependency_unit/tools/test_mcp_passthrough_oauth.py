@@ -558,3 +558,171 @@ class TestMCPPassThroughOAuth:
 
         # Should use the first OAuth account's token
         assert mcp_tool._user_oauth_token == first_token
+
+    def test_mcp_tool_run_enforces_authenticated_user_identity(
+        self, db_session: Session
+    ) -> None:
+        """
+        Test that MCP tool calls enforce authenticated user identity fields.
+
+        Even if the model provides user_id/user_email arguments, MCPTool should
+        overwrite them with the authenticated Onyx user identity when the schema
+        supports these fields.
+        """
+        user = create_test_user(db_session, "mcp_identity_enforced_user")
+
+        mcp_server = create_mcp_server__no_commit(
+            owner_email=user.email,
+            name=f"Identity Enforcement Server {uuid4().hex[:8]}",
+            description="MCP server for identity argument enforcement testing",
+            server_url="http://identity-enforcement-server.example.com/mcp",
+            auth_type=MCPAuthenticationType.NONE,
+            transport=MCPTransport.STREAMABLE_HTTP,
+            auth_performer=MCPAuthenticationPerformer.ADMIN,
+            db_session=db_session,
+        )
+        db_session.commit()
+
+        mcp_tool_db = Tool(
+            name="identity_enforcement_tool",
+            display_name="Identity Enforcement Tool",
+            description="Tool with user_id and user_email fields",
+            mcp_server_id=mcp_server.id,
+            mcp_input_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "user_id": {"type": "string"},
+                    "user_email": {"type": "string"},
+                },
+            },
+            user_id=user.id,
+        )
+        db_session.add(mcp_tool_db)
+        db_session.commit()
+        db_session.refresh(mcp_tool_db)
+
+        persona = _create_test_persona_with_mcp_tool(db_session, user, [mcp_tool_db])
+        llm = get_default_llm()
+
+        tool_dict = construct_tools(
+            persona=persona,
+            db_session=db_session,
+            emitter=get_default_emitter(),
+            user=user,
+            llm=llm,
+            search_tool_config=SearchToolConfig(),
+        )
+
+        mcp_tool = tool_dict[mcp_tool_db.id][0]
+        assert isinstance(mcp_tool, MCPTool)
+        assert mcp_tool.user_id == str(user.id)
+        assert mcp_tool.user_email == user.email
+
+        captured_kwargs: dict[str, Any] = {}
+        mocked_response = {"result": "mocked_response"}
+
+        def mock_call_mcp_tool(
+            server_url: str,  # noqa: ARG001
+            tool_name: str,  # noqa: ARG001
+            kwargs: dict[str, Any],
+            connection_headers: dict[str, str],  # noqa: ARG001
+            transport: MCPTransport,  # noqa: ARG001
+        ) -> dict[str, Any]:
+            captured_kwargs.update(kwargs)
+            return mocked_response
+
+        with patch(
+            "onyx.tools.tool_implementations.mcp.mcp_tool.call_mcp_tool",
+            side_effect=mock_call_mcp_tool,
+        ):
+            response = mcp_tool.run(
+                placement=Placement(turn_index=0, tab_index=0),
+                override_kwargs=None,
+                query="inbox status",
+                user_id="00000000-0000-0000-0000-000000000000",
+                user_email="attacker@example.com",
+            )
+            assert isinstance(response.rich_response, CustomToolCallSummary)
+
+        assert captured_kwargs["query"] == "inbox status"
+        assert captured_kwargs["user_id"] == str(user.id)
+        assert captured_kwargs["user_email"] == user.email
+
+    def test_mcp_tool_run_does_not_inject_identity_without_schema_fields(
+        self, db_session: Session
+    ) -> None:
+        """
+        Test that identity args are only injected when explicitly present in schema.
+        """
+        user = create_test_user(db_session, "mcp_identity_not_injected_user")
+
+        mcp_server = create_mcp_server__no_commit(
+            owner_email=user.email,
+            name=f"Identity Not Injected Server {uuid4().hex[:8]}",
+            description="MCP server for schema-gated identity injection testing",
+            server_url="http://identity-not-injected-server.example.com/mcp",
+            auth_type=MCPAuthenticationType.NONE,
+            transport=MCPTransport.STREAMABLE_HTTP,
+            auth_performer=MCPAuthenticationPerformer.ADMIN,
+            db_session=db_session,
+        )
+        db_session.commit()
+
+        mcp_tool_db = Tool(
+            name="identity_not_injected_tool",
+            display_name="Identity Not Injected Tool",
+            description="Tool without identity fields in schema",
+            mcp_server_id=mcp_server.id,
+            mcp_input_schema={
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+            },
+            user_id=user.id,
+        )
+        db_session.add(mcp_tool_db)
+        db_session.commit()
+        db_session.refresh(mcp_tool_db)
+
+        persona = _create_test_persona_with_mcp_tool(db_session, user, [mcp_tool_db])
+        llm = get_default_llm()
+
+        tool_dict = construct_tools(
+            persona=persona,
+            db_session=db_session,
+            emitter=get_default_emitter(),
+            user=user,
+            llm=llm,
+            search_tool_config=SearchToolConfig(),
+        )
+
+        mcp_tool = tool_dict[mcp_tool_db.id][0]
+        assert isinstance(mcp_tool, MCPTool)
+
+        captured_kwargs: dict[str, Any] = {}
+        mocked_response = {"result": "mocked_response"}
+
+        def mock_call_mcp_tool(
+            server_url: str,  # noqa: ARG001
+            tool_name: str,  # noqa: ARG001
+            kwargs: dict[str, Any],
+            connection_headers: dict[str, str],  # noqa: ARG001
+            transport: MCPTransport,  # noqa: ARG001
+        ) -> dict[str, Any]:
+            captured_kwargs.update(kwargs)
+            return mocked_response
+
+        with patch(
+            "onyx.tools.tool_implementations.mcp.mcp_tool.call_mcp_tool",
+            side_effect=mock_call_mcp_tool,
+        ):
+            response = mcp_tool.run(
+                placement=Placement(turn_index=0, tab_index=0),
+                override_kwargs=None,
+                query="latest updates",
+            )
+            assert isinstance(response.rich_response, CustomToolCallSummary)
+
+        assert captured_kwargs["query"] == "latest updates"
+        assert "user_id" not in captured_kwargs
+        assert "user_email" not in captured_kwargs

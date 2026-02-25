@@ -3,23 +3,23 @@ group "default" {
 }
 
 variable "BACKEND_REPOSITORY" {
-  default = "onyxdotapp/onyx-backend"
+  default = "onyx-local/onyx-backend"
 }
 
 variable "WEB_SERVER_REPOSITORY" {
-  default = "onyxdotapp/onyx-web-server"
+  default = "onyx-local/onyx-web-server"
 }
 
 variable "MODEL_SERVER_REPOSITORY" {
-  default = "onyxdotapp/onyx-model-server"
+  default = "onyx-local/onyx-model-server"
 }
 
 variable "INTEGRATION_REPOSITORY" {
-  default = "onyxdotapp/onyx-integration"
+  default = "onyx-local/onyx-integration"
 }
 
 variable "TAG" {
-  default = "latest"
+  default = "local-dev"
 }
 
 variable "NEXT_PUBLIC_OIDC_LOGIN_PROVIDER" {

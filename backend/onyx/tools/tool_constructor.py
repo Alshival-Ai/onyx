@@ -364,6 +364,7 @@ def construct_tools(
 
             # Get user-specific connection config if needed
             connection_config = None
+            user_id = str(user.id) if user.id else None
             user_email = user.email
             mcp_user_oauth_token = None
 
@@ -411,6 +412,7 @@ def construct_tools(
                     tool_description=saved_tool.description,
                     tool_definition=saved_tool.mcp_input_schema or {},
                     connection_config=connection_config,
+                    user_id=user_id,
                     user_email=user_email,
                     user_oauth_token=mcp_user_oauth_token,
                     additional_headers=additional_mcp_headers,

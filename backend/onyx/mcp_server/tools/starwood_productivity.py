@@ -50,6 +50,11 @@ ZENDESK_WIKI_COLLECTION = os.environ.get(
 ZENDESK_WIKI_EMBEDDING_MODEL = os.environ.get(
     "ZENDESK_WIKI_EMBEDDING_MODEL", "text-embedding-3-small"
 )
+OPENID_CONFIG_URL = os.environ.get("OPENID_CONFIG_URL")
+OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID")
+OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET")
+OIDC_SCOPE_OVERRIDE = os.environ.get("OIDC_SCOPE_OVERRIDE")
+_OIDC_TOKEN_ENDPOINT: str | None = None
 
 
 async def _current_user_from_access_token() -> tuple[str | None, str | None, str | None]:
@@ -400,28 +405,128 @@ async def _resolve_user_id(
 def _resolve_user_access_token(user_id: str) -> tuple[str | None, str | None]:
     _ensure_db_engine_initialized()
     with get_session_with_tenant(tenant_id="public") as db_session:
-        token = db_session.execute(
-            select(OAuthAccount.access_token)
+        oauth_account = db_session.execute(
+            select(OAuthAccount)
             .where(OAuthAccount.user_id == UUID(user_id))
             .order_by(OAuthAccount.id.desc())
             .limit(1)
         ).scalar_one_or_none()
 
-    if not token:
-        return None, "No OAuth access token found for user."
+        if not oauth_account:
+            return None, "No OAuth access token found for user."
 
-    if isinstance(token, str):
-        return token, None
+        access_token = oauth_account.access_token
+        if not access_token:
+            return None, "No OAuth access token found for user."
 
-    # fallback for wrapped token types
-    try:
-        token_str = str(token)
-        if token_str:
-            return token_str, None
-    except Exception:
-        pass
+        expires_at = oauth_account.expires_at
+        now_ts = int(datetime.now(timezone.utc).timestamp())
+        # Refresh shortly before expiry to avoid mid-request failures.
+        needs_refresh = isinstance(expires_at, int) and (expires_at - now_ts) < 300
+
+        if needs_refresh and oauth_account.oauth_name == "openid":
+            refreshed_token, refresh_error = _refresh_openid_oauth_account(
+                oauth_account, db_session
+            )
+            if refreshed_token:
+                return refreshed_token, None
+            if isinstance(expires_at, int) and expires_at <= now_ts:
+                return None, refresh_error or "OAuth token expired. Re-authenticate user."
+            logger.warning(
+                "OpenID token refresh failed for user_id=%s; using existing token. error=%s",
+                user_id,
+                refresh_error,
+            )
+
+        if isinstance(access_token, str):
+            return access_token, None
+
+        # fallback for wrapped token types
+        try:
+            token_str = str(access_token)
+            if token_str:
+                return token_str, None
+        except Exception:
+            pass
 
     return None, "Unable to read OAuth access token for user."
+
+
+def _get_openid_token_endpoint() -> tuple[str | None, str | None]:
+    global _OIDC_TOKEN_ENDPOINT
+    if _OIDC_TOKEN_ENDPOINT:
+        return _OIDC_TOKEN_ENDPOINT, None
+
+    if not OPENID_CONFIG_URL:
+        return None, "OPENID_CONFIG_URL is not configured."
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.get(OPENID_CONFIG_URL)
+            response.raise_for_status()
+            payload = response.json()
+        token_endpoint = payload.get("token_endpoint")
+        if not isinstance(token_endpoint, str) or not token_endpoint:
+            return None, "Unable to discover OIDC token endpoint."
+        _OIDC_TOKEN_ENDPOINT = token_endpoint
+        return token_endpoint, None
+    except Exception as exc:
+        return None, f"Failed to discover OIDC token endpoint: {exc}"
+
+
+def _refresh_openid_oauth_account(
+    oauth_account: OAuthAccount, db_session: Any
+) -> tuple[str | None, str | None]:
+    if not oauth_account.refresh_token:
+        return None, "No refresh token available for user."
+    if not OAUTH_CLIENT_ID or not OAUTH_CLIENT_SECRET:
+        return None, "OIDC client credentials are not configured."
+
+    token_endpoint, endpoint_error = _get_openid_token_endpoint()
+    if endpoint_error or not token_endpoint:
+        return None, endpoint_error or "Missing OIDC token endpoint."
+
+    data = {
+        "client_id": OAUTH_CLIENT_ID,
+        "client_secret": OAUTH_CLIENT_SECRET,
+        "grant_type": "refresh_token",
+        "refresh_token": oauth_account.refresh_token,
+    }
+    if OIDC_SCOPE_OVERRIDE:
+        data["scope"] = OIDC_SCOPE_OVERRIDE.replace(",", " ")
+
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(token_endpoint, data=data)
+
+        if response.status_code != 200:
+            return (
+                None,
+                f"OIDC refresh failed ({response.status_code}): {response.text[:200]}",
+            )
+
+        token_payload = response.json()
+        new_access_token = token_payload.get("access_token")
+        if not isinstance(new_access_token, str) or not new_access_token:
+            return None, "OIDC refresh response missing access_token."
+
+        oauth_account.access_token = new_access_token
+
+        new_refresh_token = token_payload.get("refresh_token")
+        if isinstance(new_refresh_token, str) and new_refresh_token:
+            oauth_account.refresh_token = new_refresh_token
+
+        expires_in = token_payload.get("expires_in")
+        if isinstance(expires_in, int):
+            oauth_account.expires_at = (
+                int(datetime.now(timezone.utc).timestamp()) + expires_in
+            )
+
+        db_session.add(oauth_account)
+        db_session.commit()
+        return new_access_token, None
+    except Exception as exc:
+        return None, f"OIDC refresh request failed: {exc}"
 
 
 def _fetch_onedrive_items_page(

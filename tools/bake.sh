@@ -28,8 +28,46 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-# Map IMAGE_TAG (used by docker-compose) to TAG (used by docker-bake.hcl)
-if [[ -n "${IMAGE_TAG:-}" && -z "${TAG:-}" ]]; then
+set_repo_from_image() {
+  local image_ref="$1"
+  local repo_var="$2"
+
+  if [[ -z "$image_ref" ]]; then
+    return
+  fi
+
+  local repo="$image_ref"
+  local tag=""
+
+  # Digest-pinned refs do not have a tag component.
+  if [[ "$image_ref" == *@* ]]; then
+    repo="${image_ref%@*}"
+  else
+    local last_path_segment="${image_ref##*/}"
+    # Only treat ":" as a tag delimiter if it appears after the final "/".
+    if [[ "$last_path_segment" == *:* ]]; then
+      repo="${image_ref%:*}"
+      tag="${image_ref##*:}"
+    fi
+  fi
+
+  printf -v "$repo_var" "%s" "$repo"
+  export "$repo_var"
+
+  if [[ -n "$tag" && -z "${TAG:-}" ]]; then
+    export TAG="$tag"
+  fi
+}
+
+# Keep compose image names and bake repository targets aligned.
+set_repo_from_image "${ONYX_BACKEND_IMAGE:-}" BACKEND_REPOSITORY
+set_repo_from_image "${ONYX_WEB_SERVER_IMAGE:-}" WEB_SERVER_REPOSITORY
+set_repo_from_image "${ONYX_MODEL_SERVER_IMAGE:-}" MODEL_SERVER_REPOSITORY
+
+# Keep TAG (bake) and IMAGE_TAG (compose) synchronized.
+if [[ -n "${TAG:-}" ]]; then
+  export IMAGE_TAG="$TAG"
+elif [[ -n "${IMAGE_TAG:-}" ]]; then
   export TAG="$IMAGE_TAG"
 fi
 

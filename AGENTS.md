@@ -27,6 +27,11 @@ This file provides guidance to AI agents when working with code in this reposito
   - `./tools/bake.sh web --compose-up --compose-file docker-compose.dev.yml --compose-up-service web_server`
 - Restart full dev stack with the dev compose override:
   - `./tools/bake.sh --compose-restart --compose-file docker-compose.dev.yml`
+- For this repo, keep source builds pinned to local image names/tags (avoid `latest` drift):
+  - `IMAGE_TAG=local-dev`
+  - `BACKEND_REPOSITORY=onyx-local/onyx-backend`
+  - `WEB_SERVER_REPOSITORY=onyx-local/onyx-web-server`
+  - `MODEL_SERVER_REPOSITORY=onyx-local/onyx-model-server`
 - `./tools/bake.sh --compose-restart` and `./tools/bake.sh --compose-restart --compose-file docker-compose.dev.yml` are **not always equivalent**.
   - Use the explicit `--compose-file docker-compose.dev.yml` form when working on the dev domain/TLS stack.
 - Important: keep the full command on one line (or use `\` line continuations). A broken line like `--compose-up-service` on its own will be treated as a shell command and fail.

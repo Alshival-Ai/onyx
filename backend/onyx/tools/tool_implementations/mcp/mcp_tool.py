@@ -46,6 +46,7 @@ class MCPTool(Tool[None]):
         tool_description: str,
         tool_definition: dict[str, Any],
         connection_config: MCPConnectionConfig | None = None,
+        user_id: str | None = None,
         user_email: str = "",
         user_oauth_token: str | None = None,
         additional_headers: dict[str, str] | None = None,
@@ -55,6 +56,7 @@ class MCPTool(Tool[None]):
         self._id = tool_id
         self.mcp_server = mcp_server
         self.connection_config = connection_config
+        self.user_id = user_id
         self.user_email = user_email
         self._user_oauth_token = user_oauth_token
         self._additional_headers = additional_headers or {}
@@ -199,10 +201,21 @@ class MCPTool(Tool[None]):
                     llm_facing_response=llm_facing_response,
                 )
 
+            tool_kwargs = dict(llm_kwargs)
+
+            schema_properties = self._tool_definition.get("properties", {})
+            if isinstance(schema_properties, dict):
+                # Never trust model-provided identity fields. If the tool supports
+                # identity args, enforce the authenticated chat user context.
+                if "user_id" in schema_properties and self.user_id:
+                    tool_kwargs["user_id"] = self.user_id
+                if "user_email" in schema_properties and self.user_email:
+                    tool_kwargs["user_email"] = self.user_email
+
             tool_result = call_mcp_tool(
                 self.mcp_server.server_url,
                 self._name,
-                llm_kwargs,
+                tool_kwargs,
                 connection_headers=headers,
                 transport=self.mcp_server.transport or MCPTransport.STREAMABLE_HTTP,
             )

@@ -44,7 +44,20 @@ The Docker Compose files try to look for a .env file in the same directory. The 
 downloaded during the initial setup. Feel free to edit the .env file to customize your deployment. The most important / common changed values are
 located near the top of the file.
 
-IMAGE_TAG is the version of Onyx to run. It is recommended to leave it as latest to get all updates with each redeployment.
+For this Starwood source repo, keep local builds pinned to a local tag/repository set so compose does not reuse stale registry `latest` images:
+
+```bash
+IMAGE_TAG=local-dev
+TAG=local-dev
+BACKEND_REPOSITORY=onyx-local/onyx-backend
+WEB_SERVER_REPOSITORY=onyx-local/onyx-web-server
+MODEL_SERVER_REPOSITORY=onyx-local/onyx-model-server
+ONYX_BACKEND_IMAGE=onyx-local/onyx-backend:${IMAGE_TAG}
+ONYX_WEB_SERVER_IMAGE=onyx-local/onyx-web-server:${IMAGE_TAG}
+ONYX_MODEL_SERVER_IMAGE=onyx-local/onyx-model-server:${IMAGE_TAG}
+```
+
+Use `latest` only when intentionally deploying upstream release images.
 
 ## Enabling Craft in Source-Based Dev Deployments
 
@@ -53,6 +66,14 @@ If you are running from source with `docker-compose.yml` / `docker-compose.dev.y
 1. Set the following in `deployment/docker_compose/.env`:
 
 ```bash
+IMAGE_TAG=local-dev
+TAG=local-dev
+BACKEND_REPOSITORY=onyx-local/onyx-backend
+WEB_SERVER_REPOSITORY=onyx-local/onyx-web-server
+MODEL_SERVER_REPOSITORY=onyx-local/onyx-model-server
+ONYX_BACKEND_IMAGE=onyx-local/onyx-backend:${IMAGE_TAG}
+ONYX_WEB_SERVER_IMAGE=onyx-local/onyx-web-server:${IMAGE_TAG}
+ONYX_MODEL_SERVER_IMAGE=onyx-local/onyx-model-server:${IMAGE_TAG}
 ENABLE_CRAFT=true
 CODE_INTERPRETER_BETA_ENABLED=true
 CODE_INTERPRETER_BASE_URL=http://code-interpreter:8000
