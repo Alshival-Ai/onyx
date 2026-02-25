@@ -15,6 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { cn, isImageFile } from "@/lib/utils";
 import { Disabled } from "@/refresh-components/Disabled";
+import Text from "@/refresh-components/texts/Text";
 import {
   useUploadFilesContext,
   BuildFile,
@@ -39,6 +40,10 @@ import {
 } from "@opal/icons";
 
 const MAX_INPUT_HEIGHT = 200;
+const SUPPORTED_FILE_TYPES_NOTE =
+  "Supports CSV, TSV, XLSX, PDF, DOCX, PPTX, images, text, and code files.";
+const SUPPORTED_FILE_TYPES_TOOLTIP =
+  "Supported file types: .csv, .tsv, .xlsx, .pdf, .docx, .pptx, .txt, .md, .mdx, .json, .xml, .yaml/.yml, .sql, .html, .eml, .epub, .png, .jpg/.jpeg, .webp, and common code files (such as .py, .js, .ts, .tsx). Limits: 50MB per file, 20 files per session, 200MB total.";
 
 export interface InputBarHandle {
   reset: () => void;
@@ -380,6 +385,17 @@ const InputBar = memo(
                   disabled={disabled}
                   onClick={() => fileInputRef.current?.click()}
                 />
+                <SimpleTooltip tooltip={SUPPORTED_FILE_TYPES_TOOLTIP} side="top">
+                  <span>
+                    <Text
+                      secondaryBody
+                      text03
+                      className="cursor-help select-none"
+                    >
+                      Supported file types
+                    </Text>
+                  </span>
+                </SimpleTooltip>
                 {/* Demo Data indicator pill - only show on welcome page (no session) when demo data is enabled */}
                 {demoDataEnabled && isWelcomePage && (
                   <SimpleTooltip
@@ -418,6 +434,11 @@ const InputBar = memo(
                   }
                 />
               </div>
+            </div>
+            <div className="px-2 pb-2">
+              <Text secondaryBody text03>
+                {SUPPORTED_FILE_TYPES_NOTE}
+              </Text>
             </div>
           </div>
         </Disabled>

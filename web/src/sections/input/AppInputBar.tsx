@@ -127,6 +127,7 @@ export interface AppInputBarProps {
   setPresentingDocument?: (document: MinimalOnyxDocument) => void;
   toggleDeepResearch: () => void;
   disabled: boolean;
+  isProjectChat?: boolean;
   ref?: React.Ref<AppInputBarHandle>;
 }
 
@@ -152,6 +153,7 @@ const AppInputBar = React.memo(
     toggleDeepResearch,
     setPresentingDocument,
     disabled,
+    isProjectChat = false,
     ref,
   }: AppInputBarProps) => {
     // Internal message state - kept local to avoid parent re-renders on every keystroke
@@ -388,19 +390,24 @@ const AppInputBar = React.memo(
       [currentMessageFiles]
     );
 
-    // Check if the assistant has search tools available (internal search or web search)
-    // AND if deep research is globally enabled in admin settings
+    const assistantHasSearchTools = useMemo(
+      () => hasSearchToolsAvailable(selectedAssistant?.tools || []),
+      [selectedAssistant?.tools]
+    );
+
+    // Deep research visibility is controlled by global admin setting.
+    // Tool availability affects quality, not visibility.
     const showDeepResearch = useMemo(() => {
       const deepResearchGloballyEnabled =
         combinedSettings?.settings?.deep_research_enabled ?? true;
-      return (
-        deepResearchGloballyEnabled &&
-        hasSearchToolsAvailable(selectedAssistant?.tools || [])
-      );
-    }, [
-      selectedAssistant?.tools,
-      combinedSettings?.settings?.deep_research_enabled,
-    ]);
+      return deepResearchGloballyEnabled;
+    }, [combinedSettings?.settings?.deep_research_enabled]);
+
+    useEffect(() => {
+      if (isProjectChat && deepResearchEnabled) {
+        toggleDeepResearch();
+      }
+    }, [isProjectChat, deepResearchEnabled, toggleDeepResearch]);
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
       if (!user?.preferences?.shortcut_enabled || !showPrompts) return;
@@ -715,7 +722,14 @@ const AppInputBar = React.memo(
                       variant="select"
                       selected={deepResearchEnabled}
                       foldable={!deepResearchEnabled}
-                      disabled={disabled}
+                      disabled={disabled || isProjectChat}
+                      tooltip={
+                        isProjectChat
+                          ? "Deep Research is not supported for project chats"
+                          : !assistantHasSearchTools
+                            ? "Best results require Search or Web Search tools on this assistant"
+                            : undefined
+                      }
                     >
                       Deep Research
                     </Button>

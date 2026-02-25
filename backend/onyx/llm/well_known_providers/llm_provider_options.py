@@ -13,6 +13,7 @@ from onyx.llm.well_known_providers.auto_update_service import (
 from onyx.llm.well_known_providers.constants import ANTHROPIC_PROVIDER_NAME
 from onyx.llm.well_known_providers.constants import AZURE_PROVIDER_NAME
 from onyx.llm.well_known_providers.constants import BEDROCK_PROVIDER_NAME
+from onyx.llm.well_known_providers.constants import GEMINI_PROVIDER_NAME
 from onyx.llm.well_known_providers.constants import OLLAMA_PROVIDER_NAME
 from onyx.llm.well_known_providers.constants import OPENAI_PROVIDER_NAME
 from onyx.llm.well_known_providers.constants import OPENROUTER_PROVIDER_NAME
@@ -35,6 +36,7 @@ def _get_provider_to_models_map() -> dict[str, list[str]]:
         OPENAI_PROVIDER_NAME: get_openai_model_names(),
         BEDROCK_PROVIDER_NAME: [],  # Dynamic - fetched from AWS API
         ANTHROPIC_PROVIDER_NAME: get_anthropic_model_names(),
+        GEMINI_PROVIDER_NAME: get_gemini_model_names(),
         VERTEXAI_PROVIDER_NAME: get_vertexai_model_names(),
         OLLAMA_PROVIDER_NAME: [],  # Dynamic - fetched from Ollama API
         OPENROUTER_PROVIDER_NAME: [],  # Dynamic - fetched from OpenRouter API
@@ -91,6 +93,13 @@ def is_obsolete_model(model_name: str, provider: str) -> bool:
 
     # Vertex AI obsolete models
     if provider == LlmProviderNames.VERTEX_AI:
+        if "gemini-1.0" in model_lower:
+            return True
+        if "palm" in model_lower or "bison" in model_lower:
+            return True
+
+    # Gemini obsolete models
+    if provider == LlmProviderNames.GEMINI:
         if "gemini-1.0" in model_lower:
             return True
         if "palm" in model_lower or "bison" in model_lower:
@@ -210,6 +219,44 @@ def get_vertexai_model_names() -> list[str]:
     )
 
 
+def get_gemini_model_names() -> list[str]:
+    """Get Gemini model names dynamically from litellm model_cost."""
+    import litellm
+
+    gemini_models: set[str] = set()
+
+    # Use provider-specific model list if present.
+    if hasattr(litellm, "gemini_models"):
+        gemini_models.update(
+            model.removeprefix("gemini/")
+            for model in getattr(litellm, "gemini_models")
+        )
+
+    # Also extract from model_cost to catch newly-added models.
+    for key in litellm.model_cost.keys():
+        if key.startswith("gemini/"):
+            gemini_models.add(key.replace("gemini/", "", 1))
+        elif key.startswith("gemini-"):
+            gemini_models.add(key)
+
+    return sorted(
+        [
+            model
+            for model in gemini_models
+            if "embed" not in model.lower()
+            and "image" not in model.lower()
+            and "video" not in model.lower()
+            and "veo" not in model.lower()
+            and "live" not in model.lower()
+            and "tts" not in model.lower()
+            and "native-audio" not in model.lower()
+            and "/" not in model
+            and not is_obsolete_model(model, LlmProviderNames.GEMINI)
+        ],
+        reverse=True,
+    )
+
+
 def model_configurations_for_provider(
     provider_name: str, llm_recommendations: LLMRecommendations
 ) -> list[ModelConfigurationView]:
@@ -296,6 +343,7 @@ def get_provider_display_name(provider_name: str) -> str:
         OPENAI_PROVIDER_NAME: "ChatGPT (OpenAI)",
         OLLAMA_PROVIDER_NAME: "Ollama",
         ANTHROPIC_PROVIDER_NAME: "Claude (Anthropic)",
+        GEMINI_PROVIDER_NAME: "Google Gemini",
         AZURE_PROVIDER_NAME: "Azure OpenAI",
         BEDROCK_PROVIDER_NAME: "Amazon Bedrock",
         VERTEXAI_PROVIDER_NAME: "Google Vertex AI",

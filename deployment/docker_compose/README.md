@@ -90,3 +90,46 @@ Notes:
 - The first Craft startup can take several minutes while template dependencies are prepared.
 - In this dev stack, app traffic should be checked via the dev domain (`https://dev.starwoodgpt.prosourceit.app/`) instead of raw localhost routes.
 - To force a one-time web template dependency refresh, set `CRAFT_FORCE_TEMPLATE_NPM_INSTALL=true` for the startup.
+
+## Container Health Troubleshooting
+
+### MinIO healthcheck
+
+Some MinIO images do not include `curl`, so using `curl -f http://localhost:9000/minio/health/live`
+in compose healthchecks can mark an otherwise healthy MinIO container as `unhealthy`.
+
+This repo now uses:
+
+```yaml
+healthcheck:
+  test: ["CMD", "mc", "ready", "local"]
+```
+
+for MinIO healthchecks in compose files.
+
+### Vespa configserver lock / stale session recovery
+
+If `index` stays unhealthy and logs show errors like lock timeouts or remote session load failures
+from Vespa configserver, you can recover by resetting Vespa configserver and ZooKeeper state.
+
+1. Stop dependent containers (`index`, and usually `api_server`).
+2. Back up the Vespa volume paths before any change.
+3. Reset:
+   - `/vespa/db/vespa/config_server`
+   - `/vespa/zookeeper/version-2`
+4. Start `index` again, then restart `api_server` and `nginx`.
+
+Example (replace volume name if different):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml stop index api_server
+docker run --rm -v onyx_vespa_volume:/vespa alpine sh -lc '
+  ts=$(date +%Y%m%d%H%M%S)
+  backup=/vespa/recovery-backup-$ts
+  mkdir -p "$backup"
+  cp -a /vespa/db/vespa/config_server "$backup"/config_server || true
+  cp -a /vespa/zookeeper/version-2 "$backup"/zookeeper-version-2 || true
+  rm -rf /vespa/db/vespa/config_server /vespa/zookeeper/version-2
+'
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d index api_server nginx
+```

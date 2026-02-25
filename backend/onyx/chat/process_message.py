@@ -78,6 +78,10 @@ from onyx.llm.request_context import set_llm_mock_response
 from onyx.llm.utils import litellm_exception_to_error_msg
 from onyx.onyxbot.slack.models import SlackContext
 from onyx.redis.redis_pool import get_redis_client
+from onyx.server.features.user_feature_overrides import (
+    DEEP_RESEARCH_ENABLED_OVERRIDE_KEY,
+)
+from onyx.server.features.user_feature_overrides import is_feature_enabled_with_default
 from onyx.server.query_and_chat.models import AUTO_PLACE_AFTER_LATEST_MESSAGE
 from onyx.server.query_and_chat.models import MessageResponseIDInfo
 from onyx.server.query_and_chat.models import SendMessageRequest
@@ -85,6 +89,7 @@ from onyx.server.query_and_chat.streaming_models import AgentResponseDelta
 from onyx.server.query_and_chat.streaming_models import AgentResponseStart
 from onyx.server.query_and_chat.streaming_models import CitationInfo
 from onyx.server.query_and_chat.streaming_models import Packet
+from onyx.server.settings.store import load_settings
 from onyx.server.usage_limits import check_llm_cost_limit_for_provider
 from onyx.tools.constants import SEARCH_TOOL_ID
 from onyx.tools.interface import Tool
@@ -166,6 +171,19 @@ def _should_enable_slack_search(
     source_types = filters.source_type if filters else None
     return (source_types is not None and DocumentSource.SLACK in source_types) or (
         persona.id == DEFAULT_PERSONA_ID and source_types is None
+    )
+
+
+def _is_deep_research_enabled_for_user(user: User) -> bool:
+    workspace_deep_research_enabled = load_settings().deep_research_enabled
+    return is_feature_enabled_with_default(
+        user=user,
+        feature_key=DEEP_RESEARCH_ENABLED_OVERRIDE_KEY,
+        default_enabled=(
+            workspace_deep_research_enabled
+            if workspace_deep_research_enabled is not None
+            else True
+        ),
     )
 
 
@@ -867,6 +885,9 @@ def handle_stream_message_objects(
         # Note: DB session is not thread safe but nothing else uses it and the
         # reference is passed directly so it's ok.
         if new_msg_req.deep_research:
+            if not _is_deep_research_enabled_for_user(user):
+                raise ValueError("Deep research is disabled for this user")
+
             if chat_session.project_id:
                 raise RuntimeError("Deep research is not supported for projects")
 

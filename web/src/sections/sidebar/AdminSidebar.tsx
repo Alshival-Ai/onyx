@@ -10,11 +10,6 @@ import { useIsKGExposed } from "@/app/admin/kg/utils";
 import { useCustomAnalyticsEnabled } from "@/lib/hooks/useCustomAnalyticsEnabled";
 import { useUser } from "@/providers/UserProvider";
 import { UserRole } from "@/lib/types";
-import {
-  useBillingInformation,
-  useLicense,
-  hasActiveSubscription,
-} from "@/lib/billing";
 import { usePaidEnterpriseFeaturesEnabled } from "@/components/settings/usePaidEnterpriseFeaturesEnabled";
 import {
   ClipboardIcon,
@@ -28,7 +23,6 @@ import SidebarBody from "@/sections/sidebar/SidebarBody";
 import {
   SvgActions,
   SvgActivity,
-  SvgArrowUpCircle,
   SvgBarChart,
   SvgCpu,
   SvgFileText,
@@ -50,7 +44,6 @@ import {
   SvgZoomIn,
   SvgPaintBrush,
   SvgDiscordMono,
-  SvgWallet,
 } from "@opal/icons";
 import SvgMcp from "@opal/icons/mcp";
 import UserAvatarPopover from "@/sections/sidebar/UserAvatarPopover";
@@ -143,8 +136,7 @@ const collections = (
   enableEnterprise: boolean,
   settings: CombinedSettings | null,
   kgExposed: boolean,
-  customAnalyticsEnabled: boolean,
-  hasSubscription: boolean
+  customAnalyticsEnabled: boolean
 ) => {
   const vectorDbEnabled = settings?.settings.vector_db_enabled !== false;
 
@@ -313,12 +305,6 @@ const collections = (
                     },
                   ]
                 : []),
-              // Always show billing/upgrade - community users need access to upgrade
-              {
-                name: hasSubscription ? "Plans & Billing" : "Upgrade Plan",
-                icon: hasSubscription ? SvgWallet : SvgArrowUpCircle,
-                link: "/admin/billing",
-              },
               ...(settings?.settings.opensearch_indexing_enabled
                 ? [
                     {
@@ -351,8 +337,6 @@ export default function AdminSidebar({
   const { customAnalyticsEnabled } = useCustomAnalyticsEnabled();
   const { user } = useUser();
   const settings = useSettingsContext();
-  const { data: billingData } = useBillingInformation();
-  const { data: licenseData } = useLicense();
 
   // Use runtime license check for enterprise features
   // This checks settings.ee_features_enabled (set by backend based on license status)
@@ -362,21 +346,13 @@ export default function AdminSidebar({
   const isCurator =
     user?.role === UserRole.CURATOR || user?.role === UserRole.GLOBAL_CURATOR;
 
-  // Check if user has an active subscription or license for billing link text
-  // Show "Plans & Billing" if they have either (even if Stripe connection fails)
-  const hasSubscription = Boolean(
-    (billingData && hasActiveSubscription(billingData)) ||
-      licenseData?.has_license
-  );
-
   const items = collections(
     isCurator,
     enableCloudSS,
     enableEnterprise,
     settings,
     kgExposed,
-    customAnalyticsEnabled,
-    hasSubscription
+    customAnalyticsEnabled
   );
 
   return (

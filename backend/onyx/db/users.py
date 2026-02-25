@@ -227,6 +227,23 @@ def get_user_by_email(email: str, db_session: Session) -> User | None:
     return user
 
 
+def update_user_feature_override(
+    db_session: Session,
+    user: User,
+    feature_key: str,
+    override: bool | None,
+) -> None:
+    feature_overrides = dict(user.feature_overrides or {})
+    if override is None:
+        feature_overrides.pop(feature_key, None)
+    else:
+        feature_overrides[feature_key] = override
+
+    user.feature_overrides = feature_overrides
+    db_session.add(user)
+    db_session.commit()
+
+
 def fetch_user_by_id(db_session: Session, user_id: UUID) -> User | None:
     return db_session.query(User).filter(User.id == user_id).first()  # type: ignore
 

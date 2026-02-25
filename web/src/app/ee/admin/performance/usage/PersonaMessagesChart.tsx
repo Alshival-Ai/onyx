@@ -170,7 +170,7 @@ export function PersonaMessagesChart({
         data={chartData}
         categories={["Messages", "Unique Users"]}
         index="Day"
-        colors={["indigo", "fuchsia"]}
+        colors={["#1D4ED8", "#334155"]}
         yAxisWidth={60}
       />
     );

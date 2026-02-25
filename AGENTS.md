@@ -68,6 +68,19 @@ This file provides guidance to AI agents when working with code in this reposito
   - `curl -sS https://dev.starwoodgpt.prosourceit.app/api/health`
   - `curl -sS https://dev.starwoodgpt.prosourceit.app/mcp/health`
 
+### Container Health Recovery
+
+- MinIO healthchecks in compose should use `["CMD", "mc", "ready", "local"]`.
+  - Why: `curl` is not guaranteed to exist in all MinIO server images and can cause false `unhealthy` status.
+- If `onyx-index-1` is unhealthy with Vespa configserver lock/session errors, recover by:
+  1. Stop `index` (and typically `api_server` while recovering).
+  2. Back up then reset Vespa state paths on the Vespa volume:
+     - `/vespa/db/vespa/config_server`
+     - `/vespa/zookeeper/version-2`
+  3. Start `index`, then restart `api_server` and `nginx`.
+- Example backup/reset command:
+  - `docker run --rm -v onyx_vespa_volume:/vespa alpine sh -lc 'ts=$(date +%Y%m%d%H%M%S); backup=/vespa/recovery-backup-$ts; mkdir -p "$backup"; cp -a /vespa/db/vespa/config_server "$backup"/config_server || true; cp -a /vespa/zookeeper/version-2 "$backup"/zookeeper-version-2 || true; rm -rf /vespa/db/vespa/config_server /vespa/zookeeper/version-2'`
+
 ### MCP + Microsoft Tools
 
 - MCP server must be enabled in env (`MCP_SERVER_ENABLED=true`) and running.

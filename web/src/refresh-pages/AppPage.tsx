@@ -836,6 +836,9 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
                         ref={chatInputBarRef}
                         deepResearchEnabled={deepResearchEnabled}
                         toggleDeepResearch={toggleDeepResearch}
+                        isProjectChat={Boolean(
+                          currentProjectId || currentChatSession?.project_id
+                        )}
                         toggleDocumentSidebar={toggleDocumentSidebar}
                         filterManager={filterManager}
                         llmManager={llmManager}

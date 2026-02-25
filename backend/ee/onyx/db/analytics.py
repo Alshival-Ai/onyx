@@ -12,10 +12,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from onyx.configs.constants import MessageType
+from onyx.db.models import AccessToken
 from onyx.db.models import ChatMessage
 from onyx.db.models import ChatMessageFeedback
 from onyx.db.models import ChatSession
 from onyx.db.models import Persona
+from onyx.db.models import TenantUsage
 from onyx.db.models import User
 from onyx.db.models import UserRole
 
@@ -346,3 +348,221 @@ def user_can_view_assistant_stats(
 
     persona = db_session.execute(stmt).scalar_one_or_none()
     return persona is not None
+
+
+def fetch_usage_summary(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+) -> tuple[int, int, int, int]:
+    """Get summary usage metrics for the selected time range."""
+    stmt = (
+        select(
+            func.count(ChatMessage.id),
+            func.count(func.distinct(ChatSession.user_id)),
+            func.coalesce(
+                func.sum(case((ChatMessageFeedback.is_positive.is_(True), 1), else_=0)),
+                0,
+            ),
+            func.coalesce(
+                func.sum(case((ChatMessageFeedback.is_positive.is_(False), 1), else_=0)),
+                0,
+            ),
+        )
+        .join(ChatSession, ChatSession.id == ChatMessage.chat_session_id)
+        .join(
+            ChatMessageFeedback,
+            ChatMessageFeedback.chat_message_id == ChatMessage.id,
+            isouter=True,
+        )
+        .where(
+            ChatMessage.time_sent >= start,
+            ChatMessage.time_sent <= end,
+            ChatMessage.message_type == MessageType.ASSISTANT,
+            ChatSession.user_id.is_not(None),
+        )
+    )
+
+    total_messages, total_unique_users, total_likes, total_dislikes = (
+        db_session.execute(stmt).one()
+    )
+    return (
+        int(total_messages or 0),
+        int(total_unique_users or 0),
+        int(total_likes or 0),
+        int(total_dislikes or 0),
+    )
+
+
+def fetch_llm_cost_total_cents(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+) -> float:
+    """
+    Fetch tracked LLM cost (cents) from tenant_usage windows.
+
+    Note: this is based on tracked Onyx-managed provider spend and is window-based.
+    """
+    stmt = select(func.coalesce(func.sum(TenantUsage.llm_cost_cents), 0.0)).where(
+        TenantUsage.window_start >= start,
+        TenantUsage.window_start <= end,
+    )
+    result = db_session.execute(stmt).scalar_one()
+    return float(result or 0.0)
+
+
+def fetch_llm_cost_series_cents(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+) -> list[tuple[datetime.date, float]]:
+    stmt = (
+        select(
+            cast(TenantUsage.window_start, Date),
+            func.coalesce(func.sum(TenantUsage.llm_cost_cents), 0.0),
+        )
+        .where(
+            TenantUsage.window_start >= start,
+            TenantUsage.window_start <= end,
+        )
+        .group_by(cast(TenantUsage.window_start, Date))
+        .order_by(cast(TenantUsage.window_start, Date))
+    )
+    return [(date, float(cost_cents)) for date, cost_cents in db_session.execute(stmt)]
+
+
+def fetch_chat_token_series(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+) -> list[tuple[datetime.date, int]]:
+    """Fetch chat message token totals per day (user + assistant)."""
+    stmt = (
+        select(
+            cast(ChatMessage.time_sent, Date),
+            func.coalesce(func.sum(ChatMessage.token_count), 0),
+        )
+        .join(ChatSession, ChatSession.id == ChatMessage.chat_session_id)
+        .where(
+            ChatMessage.time_sent >= start,
+            ChatMessage.time_sent <= end,
+            ChatMessage.message_type.in_([MessageType.USER, MessageType.ASSISTANT]),
+            ChatSession.user_id.is_not(None),
+        )
+        .group_by(cast(ChatMessage.time_sent, Date))
+        .order_by(cast(ChatMessage.time_sent, Date))
+    )
+    return [
+        (period_start, int(token_count or 0))
+        for period_start, token_count in db_session.execute(stmt)
+        if period_start is not None
+    ]
+
+
+def fetch_user_last_login_map(
+    user_ids: list[UUID],
+    db_session: Session,
+) -> dict[UUID, datetime.datetime]:
+    if not user_ids:
+        return {}
+
+    stmt = (
+        select(
+            AccessToken.user_id,
+            func.max(AccessToken.created_at),
+        )
+        .where(AccessToken.user_id.in_(user_ids))
+        .group_by(AccessToken.user_id)
+    )
+
+    return {
+        user_id: last_login
+        for user_id, last_login in db_session.execute(stmt)
+        if user_id is not None and last_login is not None
+    }
+
+
+def fetch_top_user_usage(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+    limit: int = 10,
+) -> list[tuple[UUID, str, int, int]]:
+    """Fetch top users ranked by number of messages sent in the selected range."""
+    message_count = func.count(ChatMessage.id).label("message_count")
+    token_count = func.coalesce(func.sum(ChatMessage.token_count), 0).label("token_count")
+
+    stmt = (
+        select(
+            ChatSession.user_id,
+            User.email,
+            message_count,
+            token_count,
+        )
+        .join(ChatSession, ChatSession.id == ChatMessage.chat_session_id)
+        .join(User, User.id == ChatSession.user_id)
+        .where(
+            ChatMessage.time_sent >= start,
+            ChatMessage.time_sent <= end,
+            ChatMessage.message_type == MessageType.USER,
+            ChatSession.user_id.is_not(None),
+        )
+        .group_by(ChatSession.user_id, User.email)
+        .order_by(message_count.desc())
+        .limit(limit)
+    )
+
+    return [
+        (
+            user_id,
+            user_email,
+            int(messages or 0),
+            int(tokens or 0),
+        )
+        for user_id, user_email, messages, tokens in db_session.execute(stmt)
+        if user_id is not None and user_email is not None
+    ]
+
+
+def fetch_top_user_usage_series(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+    user_ids: list[UUID],
+    interval: str,
+) -> list[tuple[datetime.date, UUID, str, int]]:
+    if not user_ids:
+        return []
+
+    if interval == "month":
+        period_expr = cast(func.date_trunc("month", ChatMessage.time_sent), Date)
+    elif interval == "week":
+        period_expr = cast(func.date_trunc("week", ChatMessage.time_sent), Date)
+    else:
+        period_expr = cast(ChatMessage.time_sent, Date)
+
+    stmt = (
+        select(
+            period_expr,
+            ChatSession.user_id,
+            User.email,
+            func.count(ChatMessage.id),
+        )
+        .join(ChatSession, ChatSession.id == ChatMessage.chat_session_id)
+        .join(User, User.id == ChatSession.user_id)
+        .where(
+            ChatMessage.time_sent >= start,
+            ChatMessage.time_sent <= end,
+            ChatMessage.message_type == MessageType.USER,
+            ChatSession.user_id.in_(user_ids),
+        )
+        .group_by(period_expr, ChatSession.user_id, User.email)
+        .order_by(period_expr, func.count(ChatMessage.id).desc())
+    )
+
+    return [
+        (period_start, user_id, user_email, int(message_count or 0))
+        for period_start, user_id, user_email, message_count in db_session.execute(stmt)
+        if period_start is not None and user_id is not None and user_email is not None
+    ]

@@ -50,6 +50,16 @@ ANTHROPIC_VISIBLE_MODEL_NAMES = {
 AZURE_PROVIDER_NAME = "azure"
 
 
+GEMINI_PROVIDER_NAME = "gemini"
+GEMINI_DEFAULT_MODEL = "gemini-2.5-pro"
+# Curated list of Gemini models to show by default in the UI
+GEMINI_VISIBLE_MODEL_NAMES = {
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+}
+
+
 VERTEXAI_PROVIDER_NAME = "vertex_ai"
 VERTEX_CREDENTIALS_FILE_KWARG = "vertex_credentials"
 VERTEX_CREDENTIALS_FILE_KWARG_ENV_VAR_FORMAT = "CREDENTIALS_FILE"

@@ -1,6 +1,6 @@
 const userMutationFetcher = async (
   url: string,
-  { arg }: { arg: { user_email: string; new_role?: string; method?: string } }
+  { arg }: { arg: { method?: string; [key: string]: unknown } }
 ) => {
   const { method = "PATCH", ...body } = arg;
   return fetch(url, {

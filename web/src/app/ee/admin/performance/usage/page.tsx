@@ -8,6 +8,7 @@ import { PersonaMessagesChart } from "@/app/ee/admin/performance/usage/PersonaMe
 import { useTimeRange } from "@/app/ee/admin/performance/lib";
 import { AdminPageTitle } from "@/components/admin/Title";
 import UsageReports from "@/app/ee/admin/performance/usage/UsageReports";
+import { ExecutiveDashboard } from "@/app/ee/admin/performance/usage/ExecutiveDashboard";
 import Separator from "@/refresh-components/Separator";
 import { useAdminPersonas } from "@/hooks/useAdminPersonas";
 import { SvgActivity } from "@opal/icons";
@@ -23,6 +24,7 @@ export default function AnalyticsPage() {
         value={timeRange}
         onValueChange={(value) => setTimeRange(value as any)}
       />
+      <ExecutiveDashboard timeRange={timeRange} />
       <QueryPerformanceChart timeRange={timeRange} />
       <FeedbackChart timeRange={timeRange} />
       <OnyxBotChart timeRange={timeRange} />

@@ -262,6 +262,9 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         Boolean, nullable=False, default=True
     )
     user_preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
+    feature_overrides: Mapped[dict[str, bool]] = mapped_column(
+        postgresql.JSONB(), nullable=False, default=dict
+    )
 
     chosen_assistants: Mapped[list[int] | None] = mapped_column(
         postgresql.JSONB(), nullable=True, default=None

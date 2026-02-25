@@ -253,3 +253,9 @@ USAGE_LIMIT_NON_STREAMING_CALLS_TRIAL = int(
 USAGE_LIMIT_NON_STREAMING_CALLS_PAID = int(
     os.environ.get("USAGE_LIMIT_NON_STREAMING_CALLS_PAID", "160")
 )
+
+# Assumed blended USD cost per 1K chat tokens for estimating untracked/BYOK spend
+# in analytics dashboards. This is a directional estimate, not invoice-grade billing.
+ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS = float(
+    os.environ.get("ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS", "0.006")
+)

@@ -4,6 +4,7 @@ from typing import TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel
+from pydantic import Field
 
 from onyx.auth.schemas import UserRole
 from onyx.db.models import User
@@ -37,6 +38,7 @@ class FullUserSnapshot(BaseModel):
     role: UserRole
     is_active: bool
     password_configured: bool
+    feature_overrides: dict[str, bool] = Field(default_factory=dict)
 
     @classmethod
     def from_user_model(cls, user: User) -> "FullUserSnapshot":
@@ -46,6 +48,7 @@ class FullUserSnapshot(BaseModel):
             role=user.role,
             is_active=user.is_active,
             password_configured=user.password_configured,
+            feature_overrides=user.feature_overrides or {},
         )
 
 

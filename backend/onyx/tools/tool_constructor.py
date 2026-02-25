@@ -24,6 +24,10 @@ from onyx.image_gen.interfaces import ImageGenerationProviderCredentials
 from onyx.llm.interfaces import LLM
 from onyx.llm.interfaces import LLMConfig
 from onyx.onyxbot.slack.models import SlackContext
+from onyx.server.features.user_feature_overrides import (
+    IMAGE_GENERATION_ENABLED_OVERRIDE_KEY,
+)
+from onyx.server.features.user_feature_overrides import is_feature_enabled_with_default
 from onyx.tools.built_in_tools import get_built_in_tool_by_id
 from onyx.tools.interface import Tool
 from onyx.tools.models import DynamicSchemaInfo
@@ -191,6 +195,18 @@ def construct_tools(
 
             # Handle Image Generation Tool
             elif tool_cls.__name__ == ImageGenerationTool.__name__:
+                if not is_feature_enabled_with_default(
+                    user=user,
+                    feature_key=IMAGE_GENERATION_ENABLED_OVERRIDE_KEY,
+                    default_enabled=True,
+                ):
+                    logger.debug(
+                        "Skipping tool %s because image generation is disabled for user %s",
+                        tool_cls.__name__,
+                        user.id,
+                    )
+                    continue
+
                 img_generation_llm_config = _get_image_generation_config(
                     llm, db_session
                 )

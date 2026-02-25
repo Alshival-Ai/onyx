@@ -1,6 +1,9 @@
 import datetime
 from collections import defaultdict
+from math import ceil
 from typing import List
+from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -11,17 +14,25 @@ from sqlalchemy.orm import Session
 from ee.onyx.db.analytics import fetch_assistant_message_analytics
 from ee.onyx.db.analytics import fetch_assistant_unique_users
 from ee.onyx.db.analytics import fetch_assistant_unique_users_total
+from ee.onyx.db.analytics import fetch_chat_token_series
+from ee.onyx.db.analytics import fetch_llm_cost_series_cents
+from ee.onyx.db.analytics import fetch_llm_cost_total_cents
 from ee.onyx.db.analytics import fetch_onyxbot_analytics
 from ee.onyx.db.analytics import fetch_per_user_query_analytics
 from ee.onyx.db.analytics import fetch_persona_message_analytics
 from ee.onyx.db.analytics import fetch_persona_unique_users
 from ee.onyx.db.analytics import fetch_query_analytics
+from ee.onyx.db.analytics import fetch_top_user_usage
+from ee.onyx.db.analytics import fetch_top_user_usage_series
+from ee.onyx.db.analytics import fetch_usage_summary
+from ee.onyx.db.analytics import fetch_user_last_login_map
 from ee.onyx.db.analytics import user_can_view_assistant_stats
 from onyx.auth.users import current_admin_user
 from onyx.auth.users import current_user
 from onyx.configs.constants import PUBLIC_API_TAGS
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.models import User
+from shared_configs.configs import ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS
 
 router = APIRouter(prefix="/analytics", tags=PUBLIC_API_TAGS)
 
@@ -269,4 +280,168 @@ def get_assistant_stats(
         daily_stats=daily_results,
         total_messages=total_msgs,
         total_unique_users=total_users,
+    )
+
+
+class CostSeriesPoint(BaseModel):
+    period_start: datetime.date
+    llm_cost_usd: float
+    estimated_byok_cost_usd: float
+
+
+class DashboardTopUser(BaseModel):
+    user_id: str
+    user_email: str
+    message_count: int
+    token_count: int
+    last_login: datetime.datetime | None
+    average_messages_per_week: float
+    average_messages_per_month: float
+
+
+class DashboardUserUsagePoint(BaseModel):
+    period_start: datetime.date
+    user_id: str
+    user_email: str
+    message_count: int
+
+
+class AdminDashboardResponse(BaseModel):
+    total_messages: int
+    total_unique_users: int
+    total_likes: int
+    total_dislikes: int
+    total_llm_cost_usd: float
+    total_estimated_byok_cost_usd: float
+    cost_series: list[CostSeriesPoint]
+    top_users: list[DashboardTopUser]
+    top_user_usage_series: list[DashboardUserUsagePoint]
+    selected_interval: Literal["week", "month"]
+    cost_note: str
+    byok_estimation_note: str
+
+
+@router.get("/admin/dashboard")
+def get_admin_dashboard(
+    start: datetime.datetime | None = None,
+    end: datetime.datetime | None = None,
+    interval: Literal["week", "month"] = "week",
+    top_n: int = 10,
+    _: User = Depends(current_admin_user),
+    db_session: Session = Depends(get_session),
+) -> AdminDashboardResponse:
+    start = start or (
+        datetime.datetime.utcnow() - datetime.timedelta(days=_DEFAULT_LOOKBACK_DAYS)
+    )
+    end = end or datetime.datetime.utcnow()
+
+    total_messages, total_unique_users, total_likes, total_dislikes = (
+        fetch_usage_summary(start=start, end=end, db_session=db_session)
+    )
+
+    llm_cost_total_cents = fetch_llm_cost_total_cents(
+        start=start, end=end, db_session=db_session
+    )
+    llm_cost_series_cents = fetch_llm_cost_series_cents(
+        start=start, end=end, db_session=db_session
+    )
+    chat_token_series = fetch_chat_token_series(
+        start=start, end=end, db_session=db_session
+    )
+
+    llm_cost_usd_by_period: dict[datetime.date, float] = {
+        period_start: (cost_cents / 100.0)
+        for period_start, cost_cents in llm_cost_series_cents
+    }
+    estimated_chat_cost_usd_by_period: dict[datetime.date, float] = {
+        period_start: (
+            token_count / 1000.0 * ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS
+        )
+        for period_start, token_count in chat_token_series
+    }
+    estimated_byok_cost_usd_by_period: dict[datetime.date, float] = {
+        period_start: max(
+            estimated_chat_cost_usd_by_period.get(period_start, 0.0)
+            - llm_cost_usd_by_period.get(period_start, 0.0),
+            0.0,
+        )
+        for period_start in set(llm_cost_usd_by_period).union(
+            estimated_chat_cost_usd_by_period
+        )
+    }
+    estimated_byok_total_usd = sum(estimated_byok_cost_usd_by_period.values())
+
+    top_users_raw = fetch_top_user_usage(
+        start=start,
+        end=end,
+        db_session=db_session,
+        limit=max(1, min(top_n, 50)),
+    )
+    top_user_ids: list[UUID] = [user_id for user_id, _, _, _ in top_users_raw]
+    user_last_login_map = fetch_user_last_login_map(top_user_ids, db_session)
+
+    range_days = max(1, (end.date() - start.date()).days + 1)
+    weeks_in_range = max(1, ceil(range_days / 7))
+    months_in_range = max(1, ceil(range_days / 30))
+
+    top_users = [
+        DashboardTopUser(
+            user_id=str(user_id),
+            user_email=user_email,
+            message_count=message_count,
+            token_count=token_count,
+            last_login=user_last_login_map.get(user_id),
+            average_messages_per_week=round(message_count / weeks_in_range, 2),
+            average_messages_per_month=round(message_count / months_in_range, 2),
+        )
+        for user_id, user_email, message_count, token_count in top_users_raw
+    ]
+
+    top_user_usage_series_raw = fetch_top_user_usage_series(
+        start=start,
+        end=end,
+        db_session=db_session,
+        user_ids=top_user_ids,
+        interval=interval,
+    )
+
+    return AdminDashboardResponse(
+        total_messages=total_messages,
+        total_unique_users=total_unique_users,
+        total_likes=total_likes,
+        total_dislikes=total_dislikes,
+        total_llm_cost_usd=round(llm_cost_total_cents / 100.0, 2),
+        total_estimated_byok_cost_usd=round(estimated_byok_total_usd, 2),
+        cost_series=[
+            CostSeriesPoint(
+                period_start=period_start,
+                llm_cost_usd=round(llm_cost_usd_by_period.get(period_start, 0.0), 2),
+                estimated_byok_cost_usd=round(
+                    estimated_byok_cost_usd_by_period.get(period_start, 0.0), 2
+                ),
+            )
+            for period_start in sorted(
+                set(llm_cost_usd_by_period).union(estimated_byok_cost_usd_by_period)
+            )
+        ],
+        top_users=top_users,
+        top_user_usage_series=[
+            DashboardUserUsagePoint(
+                period_start=period_start,
+                user_id=str(user_id),
+                user_email=user_email,
+                message_count=message_count,
+            )
+            for period_start, user_id, user_email, message_count in top_user_usage_series_raw
+        ],
+        selected_interval=interval,
+        cost_note=(
+            "AI cost is based on tracked LLM spend for Onyx-managed provider keys. "
+            "Bring-your-own keys are not included in this cost figure."
+        ),
+        byok_estimation_note=(
+            "Estimated BYOK/untracked cost is directional: it uses chat message tokens "
+            f"at an assumed ${ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS:.4f} "
+            "per 1K tokens, minus tracked Onyx-managed cost (floored at $0)."
+        ),
     )

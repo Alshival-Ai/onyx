@@ -15,6 +15,7 @@ class LlmProviderNames(str, Enum):
 
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
     GOOGLE = "google"
     BEDROCK = "bedrock"
     BEDROCK_CONVERSE = "bedrock_converse"
@@ -36,6 +37,7 @@ class LlmProviderNames(str, Enum):
 WELL_KNOWN_PROVIDER_NAMES = [
     LlmProviderNames.OPENAI,
     LlmProviderNames.ANTHROPIC,
+    LlmProviderNames.GEMINI,
     LlmProviderNames.VERTEX_AI,
     LlmProviderNames.BEDROCK,
     LlmProviderNames.OPENROUTER,
@@ -48,6 +50,7 @@ WELL_KNOWN_PROVIDER_NAMES = [
 PROVIDER_DISPLAY_NAMES: dict[str, str] = {
     LlmProviderNames.OPENAI: "OpenAI",
     LlmProviderNames.ANTHROPIC: "Anthropic",
+    LlmProviderNames.GEMINI: "Gemini",
     LlmProviderNames.GOOGLE: "Google",
     LlmProviderNames.BEDROCK: "Bedrock",
     LlmProviderNames.BEDROCK_CONVERSE: "Bedrock",
@@ -73,7 +76,6 @@ PROVIDER_DISPLAY_NAMES: dict[str, str] = {
     "alibaba": "Alibaba",
     "qwen": "Qwen",
     "microsoft": "Microsoft",
-    "gemini": "Gemini",
     "stability": "Stability",
     "writer": "Writer",
 }

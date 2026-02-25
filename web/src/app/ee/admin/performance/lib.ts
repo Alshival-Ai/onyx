@@ -1,6 +1,11 @@
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import useSWR, { mutate } from "swr";
-import { OnyxBotAnalytics, QueryAnalytics, UserAnalytics } from "./usage/types";
+import {
+  AdminDashboardAnalytics,
+  OnyxBotAnalytics,
+  QueryAnalytics,
+  UserAnalytics,
+} from "./usage/types";
 import { useState } from "react";
 import { buildApiPath } from "@/lib/urlBuilder";
 
@@ -56,6 +61,26 @@ export const useOnyxBotAnalytics = (timeRange: DateRangePickerValue) => {
   return {
     ...swrResponse,
     refreshOnyxBotAnalytics: () => mutate(url),
+  };
+};
+
+export const useAdminDashboardAnalytics = (
+  timeRange: DateRangePickerValue,
+  interval: "week" | "month",
+  topN: number = 10
+) => {
+  const url = buildApiPath("/api/analytics/admin/dashboard", {
+    start: convertDateToStartOfDay(timeRange.from)?.toISOString(),
+    end: convertDateToEndOfDay(timeRange.to)?.toISOString(),
+    interval,
+    top_n: topN.toString(),
+  });
+
+  const swrResponse = useSWR<AdminDashboardAnalytics>(url, errorHandlingFetcher);
+
+  return {
+    ...swrResponse,
+    refreshDashboardAnalytics: () => mutate(url),
   };
 };
 

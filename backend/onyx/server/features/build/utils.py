@@ -268,12 +268,20 @@ def validate_file(
 # Flag logic: True = enabled, False/null/not found = disabled
 ONYX_CRAFT_ENABLED_FLAG = "onyx-craft-enabled"
 
+# Per-user override key stored on user.feature_overrides
+ONYX_CRAFT_OVERRIDE_KEY = "onyx_craft_enabled"
+
 # PostHog feature flag key for controlling whether a user has usage limits
 # Flag logic: True = user has usage limits (rate limits apply), False/null/not found = no limits (unlimited usage)
 CRAFT_HAS_USAGE_LIMITS = "craft-has-usage-limits"
 
 # Feature identifier in additional_data
 BUILD_MODE_FEATURE_ID = "build_mode"
+
+
+def get_feature_override(user: User, feature_key: str) -> bool | None:
+    raw_value = (user.feature_overrides or {}).get(feature_key)
+    return raw_value if isinstance(raw_value, bool) else None
 
 
 def is_onyx_craft_enabled(user: User) -> bool:
@@ -288,23 +296,31 @@ def is_onyx_craft_enabled(user: User) -> bool:
     Only explicit True enables the feature.
     """
     feature_flag_provider = get_default_feature_flag_provider()
+    override = get_feature_override(user, ONYX_CRAFT_OVERRIDE_KEY)
 
     # If no PostHog configured (NoOp provider), use ENABLE_CRAFT env var
     if isinstance(feature_flag_provider, NoOpFeatureFlagProvider):
-        return ENABLE_CRAFT
+        if not ENABLE_CRAFT:
+            return False
+        # Runtime supports Craft. Apply explicit user override if present.
+        return override if override is not None else True
 
-    # Use the feature flag provider
-    is_enabled = feature_flag_provider.feature_enabled(
+    # Use the feature flag provider for default rollout behavior.
+    is_enabled_by_posthog = feature_flag_provider.feature_enabled(
         ONYX_CRAFT_ENABLED_FLAG,
         user.id,
     )
 
-    if is_enabled:
+    # Explicit user override wins over PostHog rollout targeting.
+    if override is not None:
+        return override
+
+    if is_enabled_by_posthog:
         logger.debug("Onyx Craft enabled via PostHog feature flag")
         return True
-    else:
-        logger.debug("Onyx Craft disabled via PostHog feature flag")
-        return False
+
+    logger.debug("Onyx Craft disabled via PostHog feature flag")
+    return False
 
 
 def ensure_build_mode_intro_notification(user: User, db_session: Session) -> None:

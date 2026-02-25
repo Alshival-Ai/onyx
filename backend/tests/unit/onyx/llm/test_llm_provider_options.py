@@ -10,6 +10,9 @@ from onyx.llm.well_known_providers.auto_update_models import LLMRecommendations
 from onyx.llm.well_known_providers.constants import OPENAI_PROVIDER_NAME
 from onyx.llm.well_known_providers.constants import VERTEXAI_PROVIDER_NAME
 from onyx.llm.well_known_providers.llm_provider_options import (
+    get_provider_display_name,
+)
+from onyx.llm.well_known_providers.llm_provider_options import (
     model_configurations_for_provider,
 )
 from onyx.llm.well_known_providers.models import SimpleKnownModel
@@ -100,3 +103,7 @@ def test_model_configurations_non_vertex_preserve_provider_order(
         "model-a",
         "model-c",
     ]
+
+
+def test_get_provider_display_name_for_gemini() -> None:
+    assert get_provider_display_name("gemini") == "Google Gemini"

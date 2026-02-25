@@ -44,7 +44,7 @@ export function AreaChartDisplay({
   data = [],
   categories = [],
   index,
-  colors = ["indigo", "fuchsia"],
+  colors = ["#1D4ED8", "#0F766E"],
   showXAxis = true,
   showYAxis = true,
   yAxisWidth = 56,

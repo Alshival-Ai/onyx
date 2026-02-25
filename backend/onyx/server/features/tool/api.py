@@ -22,8 +22,13 @@ from onyx.db.tools import update_tool
 from onyx.server.features.tool.models import CustomToolCreate
 from onyx.server.features.tool.models import CustomToolUpdate
 from onyx.server.features.tool.models import ToolSnapshot
+from onyx.server.features.user_feature_overrides import (
+    IMAGE_GENERATION_ENABLED_OVERRIDE_KEY,
+)
+from onyx.server.features.user_feature_overrides import is_feature_enabled_with_default
 from onyx.server.features.tool.tool_visibility import should_expose_tool_to_fe
 from onyx.tools.built_in_tools import get_built_in_tool_by_id
+from onyx.tools.constants import IMAGE_GENERATION_TOOL_ID
 from onyx.tools.tool_implementations.custom.openapi_parsing import MethodSpec
 from onyx.tools.tool_implementations.custom.openapi_parsing import (
     openapi_to_method_specs,
@@ -249,13 +254,23 @@ def get_custom_tool(
 @router.get("", tags=PUBLIC_API_TAGS)
 def list_tools(
     db_session: Session = Depends(get_session),
-    _: User = Depends(current_user),
+    user: User = Depends(current_user),
 ) -> list[ToolSnapshot]:
     tools = get_tools(db_session, only_enabled=True, only_connected_mcp=True)
 
     filtered_tools: list[ToolSnapshot] = []
     for tool in tools:
         if not should_expose_tool_to_fe(tool):
+            continue
+
+        if (
+            tool.in_code_tool_id == IMAGE_GENERATION_TOOL_ID
+            and not is_feature_enabled_with_default(
+                user=user,
+                feature_key=IMAGE_GENERATION_ENABLED_OVERRIDE_KEY,
+                default_enabled=True,
+            )
+        ):
             continue
 
         # Check if it's a built-in tool and if it's available

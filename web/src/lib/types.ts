@@ -99,6 +99,7 @@ export interface User {
   password_configured?: boolean;
   tenant_info?: TenantInfo | null;
   personalization?: UserPersonalization;
+  feature_overrides?: Record<string, boolean>;
 }
 
 export interface TenantInfo {

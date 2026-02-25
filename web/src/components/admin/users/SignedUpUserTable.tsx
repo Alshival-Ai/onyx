@@ -20,6 +20,8 @@ import { TableHeader } from "@/components/ui/table";
 import UserRoleDropdown from "./buttons/UserRoleDropdown";
 import DeleteUserButton from "./buttons/DeleteUserButton";
 import DeactivateUserButton from "./buttons/DeactivateUserButton";
+import UserFeatureOverrideDropdown from "./buttons/UserFeatureOverrideDropdown";
+import { type UserFeatureOverrideKey } from "./buttons/UserFeatureOverrideDropdown";
 import usePaginatedFetch from "@/hooks/usePaginatedFetch";
 import { ThreeDotsLoader } from "@/components/Loading";
 import { ErrorCallout } from "@/components/ErrorCallout";
@@ -42,6 +44,12 @@ import { SvgKey, SvgMoreHorizontal } from "@opal/icons";
 import { Button as OpalButton } from "@opal/components";
 const ITEMS_PER_PAGE = 10;
 const PAGES_PER_BATCH = 2;
+
+const FEATURE_LABELS: Record<UserFeatureOverrideKey, string> = {
+  onyx_craft_enabled: "Code Interpreter",
+  image_generation_enabled: "Image Generation",
+  deep_research_enabled: "Deep Research",
+};
 
 interface ActionMenuProps {
   user: User;
@@ -128,6 +136,13 @@ export default function SignedUpUserTable({
     handlePopup("User role updated successfully!", "success");
   const onRoleChangeError = (errorMsg: string) =>
     handlePopup(`Unable to update user role - ${errorMsg}`, "error");
+  const onFeatureOverrideSuccess = (featureLabel: string) =>
+    handlePopup(`${featureLabel} access updated successfully!`, "success");
+  const onFeatureOverrideError = (featureLabel: string, errorMsg: string) =>
+    handlePopup(
+      `Unable to update ${featureLabel} access - ${errorMsg}`,
+      "error"
+    );
 
   const toggleRole = (roleEnum: UserRole) => {
     setFilters((prev) => {
@@ -330,6 +345,26 @@ export default function SignedUpUserTable({
     );
   };
 
+  const renderFeatureOverrideDropdown = (
+    user: User,
+    featureKey: UserFeatureOverrideKey
+  ) => {
+    if (user.role === UserRole.SLACK_USER) {
+      return <p className="text-center">-</p>;
+    }
+
+    const featureLabel = FEATURE_LABELS[featureKey];
+
+    return (
+      <UserFeatureOverrideDropdown
+        user={user}
+        featureKey={featureKey}
+        onSuccess={() => onFeatureOverrideSuccess(featureLabel)}
+        onError={(errorMsg) => onFeatureOverrideError(featureLabel, errorMsg)}
+      />
+    );
+  };
+
   return (
     <>
       {renderFilters()}
@@ -339,6 +374,9 @@ export default function SignedUpUserTable({
             <TableHead>Email</TableHead>
             <TableHead className="text-center">Role</TableHead>
             <TableHead className="text-center">Status</TableHead>
+            <TableHead className="text-center">Code Interpreter</TableHead>
+            <TableHead className="text-center">Image Generation</TableHead>
+            <TableHead className="text-center">Deep Research</TableHead>
             <TableHead>
               <div className="flex">
                 <div className="ml-auto">Actions</div>
@@ -349,7 +387,7 @@ export default function SignedUpUserTable({
         {isLoading ? (
           <TableBody>
             <TableRow>
-              <TableCell colSpan={4} className="text-center">
+              <TableCell colSpan={7} className="text-center">
                 <ThreeDotsLoader />
               </TableCell>
             </TableRow>
@@ -358,7 +396,7 @@ export default function SignedUpUserTable({
           <TableBody>
             {!pageOfUsers?.length ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   <p className="pt-4 pb-4">
                     {filters.roles?.length || filters.is_active !== undefined
                       ? "No users found matching your filters"
@@ -375,6 +413,21 @@ export default function SignedUpUserTable({
                   </TableCell>
                   <TableCell className="text-center w-[140px]">
                     <i>{user.is_active ? "Active" : "Inactive"}</i>
+                  </TableCell>
+                  <TableCell className="text-center w-[220px]">
+                    {renderFeatureOverrideDropdown(user, "onyx_craft_enabled")}
+                  </TableCell>
+                  <TableCell className="text-center w-[220px]">
+                    {renderFeatureOverrideDropdown(
+                      user,
+                      "image_generation_enabled"
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center w-[220px]">
+                    {renderFeatureOverrideDropdown(
+                      user,
+                      "deep_research_enabled"
+                    )}
                   </TableCell>
                   <TableCell className="text-right  w-[300px] ">
                     {renderActionButtons(user)}

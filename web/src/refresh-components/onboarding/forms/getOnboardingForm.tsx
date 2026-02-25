@@ -6,6 +6,7 @@ import {
 import { OnboardingActions, OnboardingState } from "../types";
 import { OpenAIOnboardingForm } from "./OpenAIOnboardingForm";
 import { AnthropicOnboardingForm } from "./AnthropicOnboardingForm";
+import { GeminiOnboardingForm } from "./GeminiOnboardingForm";
 import { OllamaOnboardingForm } from "./OllamaOnboardingForm";
 import { AzureOnboardingForm } from "./AzureOnboardingForm";
 import { BedrockOnboardingForm } from "./BedrockOnboardingForm";
@@ -20,6 +21,10 @@ const PROVIDER_DISPLAY_INFO: Record<
 > = {
   [LLMProviderName.OPENAI]: { title: "GPT", displayName: "OpenAI" },
   [LLMProviderName.ANTHROPIC]: { title: "Claude", displayName: "Anthropic" },
+  [LLMProviderName.GEMINI]: {
+    title: "Gemini",
+    displayName: "Google AI Studio",
+  },
   [LLMProviderName.OLLAMA_CHAT]: { title: "Ollama", displayName: "Ollama" },
   [LLMProviderName.AZURE]: {
     title: "Azure OpenAI",
@@ -96,6 +101,17 @@ export function getOnboardingForm({
     case LLMProviderName.ANTHROPIC:
       return (
         <AnthropicOnboardingForm
+          llmDescriptor={llmDescriptor}
+          onboardingState={onboardingState}
+          onboardingActions={onboardingActions}
+          open={open}
+          onOpenChange={onOpenChange}
+        />
+      );
+
+    case LLMProviderName.GEMINI:
+      return (
+        <GeminiOnboardingForm
           llmDescriptor={llmDescriptor}
           onboardingState={onboardingState}
           onboardingActions={onboardingActions}

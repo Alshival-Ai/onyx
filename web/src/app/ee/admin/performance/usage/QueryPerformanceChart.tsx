@@ -75,7 +75,7 @@ export function QueryPerformanceChart({
         })}
         categories={["Queries", "Unique Users"]}
         index="Day"
-        colors={["indigo", "fuchsia"]}
+        colors={["#1D4ED8", "#0F766E"]}
         yAxisFormatter={(number: number) =>
           new Intl.NumberFormat("en-US", {
             notation: "standard",

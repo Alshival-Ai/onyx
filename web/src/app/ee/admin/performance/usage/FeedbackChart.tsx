@@ -59,7 +59,7 @@ export function FeedbackChart({
         })}
         categories={["Positive Feedback", "Negative Feedback"]}
         index="Day"
-        colors={["indigo", "fuchsia"]}
+        colors={["#0F766E", "#9F1239"]}
         yAxisWidth={60}
       />
     );

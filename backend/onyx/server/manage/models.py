@@ -190,6 +190,18 @@ class UserRoleUpdateRequest(BaseModel):
     explicit_override: bool = False
 
 
+class UserFeatureKey(str, Enum):
+    ONYX_CRAFT_ENABLED = "onyx_craft_enabled"
+    IMAGE_GENERATION_ENABLED = "image_generation_enabled"
+    DEEP_RESEARCH_ENABLED = "deep_research_enabled"
+
+
+class UserFeatureOverrideUpdateRequest(BaseModel):
+    user_email: str
+    feature_key: UserFeatureKey
+    override: bool | None = None
+
+
 class UserRoleResponse(BaseModel):
     role: str
 

@@ -71,6 +71,7 @@ from onyx.db.users import get_all_users
 from onyx.db.users import get_page_of_filtered_users
 from onyx.db.users import get_total_filtered_users_count
 from onyx.db.users import get_user_by_email
+from onyx.db.users import update_user_feature_override
 from onyx.db.users import validate_user_role_update
 from onyx.key_value_store.factory import get_kv_store
 from onyx.redis.redis_pool import get_raw_redis_client
@@ -86,6 +87,7 @@ from onyx.server.manage.models import TenantInfo
 from onyx.server.manage.models import TenantSnapshot
 from onyx.server.manage.models import ThemePreferenceRequest
 from onyx.server.manage.models import UserByEmail
+from onyx.server.manage.models import UserFeatureOverrideUpdateRequest
 from onyx.server.manage.models import UserInfo
 from onyx.server.manage.models import UserPreferences
 from onyx.server.manage.models import UserRoleResponse
@@ -149,6 +151,24 @@ def set_user_role(
         )(db_session, user_to_update)
 
     update_user_role(user_to_update, requested_role, db_session)
+
+
+@router.patch("/manage/admin/user-feature-override", tags=PUBLIC_API_TAGS)
+def set_user_feature_override(
+    request: UserFeatureOverrideUpdateRequest,
+    _: User = Depends(current_admin_user),
+    db_session: Session = Depends(get_session),
+) -> None:
+    user_to_update = get_user_by_email(email=request.user_email, db_session=db_session)
+    if not user_to_update:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_user_feature_override(
+        db_session=db_session,
+        user=user_to_update,
+        feature_key=request.feature_key.value,
+        override=request.override,
+    )
 
 
 class TestUpsertRequest(BaseModel):
@@ -265,26 +285,8 @@ def list_all_users(
     # If any of q, accepted_page, or invited_page is None, return all users
     if accepted_page is None or invited_page is None or slack_users_page is None:
         return AllUsersResponse(
-            accepted=[
-                FullUserSnapshot(
-                    id=user.id,
-                    email=user.email,
-                    role=user.role,
-                    is_active=user.is_active,
-                    password_configured=user.password_configured,
-                )
-                for user in accepted_users
-            ],
-            slack_users=[
-                FullUserSnapshot(
-                    id=user.id,
-                    email=user.email,
-                    role=user.role,
-                    is_active=user.is_active,
-                    password_configured=user.password_configured,
-                )
-                for user in slack_users
-            ],
+            accepted=[FullUserSnapshot.from_user_model(user) for user in accepted_users],
+            slack_users=[FullUserSnapshot.from_user_model(user) for user in slack_users],
             invited=[InvitedUserSnapshot(email=email) for email in invited_emails],
             accepted_pages=1,
             invited_pages=1,
@@ -293,26 +295,10 @@ def list_all_users(
 
     # Otherwise, return paginated results
     return AllUsersResponse(
-        accepted=[
-            FullUserSnapshot(
-                id=user.id,
-                email=user.email,
-                role=user.role,
-                is_active=user.is_active,
-                password_configured=user.password_configured,
-            )
-            for user in accepted_users
-        ][accepted_page * USERS_PAGE_SIZE : (accepted_page + 1) * USERS_PAGE_SIZE],
-        slack_users=[
-            FullUserSnapshot(
-                id=user.id,
-                email=user.email,
-                role=user.role,
-                is_active=user.is_active,
-                password_configured=user.password_configured,
-            )
-            for user in slack_users
-        ][
+        accepted=[FullUserSnapshot.from_user_model(user) for user in accepted_users][
+            accepted_page * USERS_PAGE_SIZE : (accepted_page + 1) * USERS_PAGE_SIZE
+        ],
+        slack_users=[FullUserSnapshot.from_user_model(user) for user in slack_users][
             slack_users_page
             * USERS_PAGE_SIZE : (slack_users_page + 1)
             * USERS_PAGE_SIZE

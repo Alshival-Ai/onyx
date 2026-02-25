@@ -18,6 +18,44 @@ export interface OnyxBotAnalytics {
   date: string;
 }
 
+export interface DashboardCostSeriesPoint {
+  period_start: string;
+  llm_cost_usd: number;
+  estimated_byok_cost_usd: number;
+}
+
+export interface DashboardTopUser {
+  user_id: string;
+  user_email: string;
+  message_count: number;
+  token_count: number;
+  last_login: string | null;
+  average_messages_per_week: number;
+  average_messages_per_month: number;
+}
+
+export interface DashboardUserUsagePoint {
+  period_start: string;
+  user_id: string;
+  user_email: string;
+  message_count: number;
+}
+
+export interface AdminDashboardAnalytics {
+  total_messages: number;
+  total_unique_users: number;
+  total_likes: number;
+  total_dislikes: number;
+  total_llm_cost_usd: number;
+  total_estimated_byok_cost_usd: number;
+  cost_series: DashboardCostSeriesPoint[];
+  top_users: DashboardTopUser[];
+  top_user_usage_series: DashboardUserUsagePoint[];
+  selected_interval: "week" | "month";
+  cost_note: string;
+  byok_estimation_note: string;
+}
+
 export interface AbridgedSearchDoc {
   document_id: string;
   semantic_identifier: string;
