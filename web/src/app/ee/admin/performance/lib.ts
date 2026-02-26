@@ -2,6 +2,7 @@ import { errorHandlingFetcher } from "@/lib/fetcher";
 import useSWR, { mutate } from "swr";
 import {
   AdminDashboardAnalytics,
+  OpenAIOrgAnalytics,
   OnyxBotAnalytics,
   QueryAnalytics,
   UserAnalytics,
@@ -81,6 +82,20 @@ export const useAdminDashboardAnalytics = (
   return {
     ...swrResponse,
     refreshDashboardAnalytics: () => mutate(url),
+  };
+};
+
+export const useOpenAIOrgAnalytics = (timeRange: DateRangePickerValue) => {
+  const url = buildApiPath("/api/analytics/admin/openai-org", {
+    start: convertDateToStartOfDay(timeRange.from)?.toISOString(),
+    end: convertDateToEndOfDay(timeRange.to)?.toISOString(),
+  });
+
+  const swrResponse = useSWR<OpenAIOrgAnalytics>(url, errorHandlingFetcher);
+
+  return {
+    ...swrResponse,
+    refreshOpenAIOrgAnalytics: () => mutate(url),
   };
 };
 

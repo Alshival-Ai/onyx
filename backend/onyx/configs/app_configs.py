@@ -1115,6 +1115,20 @@ VERTEXAI_DEFAULT_CREDENTIALS = os.environ.get("VERTEXAI_DEFAULT_CREDENTIALS")
 VERTEXAI_DEFAULT_LOCATION = os.environ.get("VERTEXAI_DEFAULT_LOCATION", "global")
 OPENROUTER_DEFAULT_API_KEY = os.environ.get("OPENROUTER_DEFAULT_API_KEY")
 
+# Optional OpenAI Org-level analytics (admin API key + optional project filter).
+# Used for pulling costs/usage from OpenAI organization endpoints for dashboards.
+OPENAI_ORG_ADMIN_KEY = os.environ.get("OPENAI_ORG_ADMIN_KEY")
+_OPENAI_ORG_PROJECT_IDS_RAW = os.environ.get("OPENAI_ORG_PROJECT_IDS")
+OPENAI_ORG_PROJECT_IDS = (
+    [
+        project_id.strip()
+        for project_id in _OPENAI_ORG_PROJECT_IDS_RAW.split(",")
+        if project_id.strip()
+    ]
+    if _OPENAI_ORG_PROJECT_IDS_RAW
+    else None
+)
+
 INSTANCE_TYPE = (
     "managed"
     if os.environ.get("IS_MANAGED_INSTANCE", "").lower() == "true"

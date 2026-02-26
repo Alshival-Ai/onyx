@@ -5,6 +5,7 @@ from typing import List
 from typing import Literal
 from uuid import UUID
 
+import requests
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
@@ -27,14 +28,23 @@ from ee.onyx.db.analytics import fetch_top_user_usage_series
 from ee.onyx.db.analytics import fetch_usage_summary
 from ee.onyx.db.analytics import fetch_user_last_login_map
 from ee.onyx.db.analytics import user_can_view_assistant_stats
+from ee.onyx.server.analytics.openai_org_analytics import fetch_openai_cost_series_usd
+from ee.onyx.server.analytics.openai_org_analytics import fetch_openai_usage_capabilities
+from ee.onyx.server.analytics.openai_org_analytics import (
+    OpenAIUsageCapabilityAggregate,
+)
 from onyx.auth.users import current_admin_user
 from onyx.auth.users import current_user
+from onyx.configs.app_configs import OPENAI_ORG_ADMIN_KEY
+from onyx.configs.app_configs import OPENAI_ORG_PROJECT_IDS
 from onyx.configs.constants import PUBLIC_API_TAGS
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.models import User
+from onyx.utils.logger import setup_logger
 from shared_configs.configs import ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS
 
 router = APIRouter(prefix="/analytics", tags=PUBLIC_API_TAGS)
+logger = setup_logger()
 
 
 _DEFAULT_LOOKBACK_DAYS = 30
@@ -353,6 +363,50 @@ def get_admin_dashboard(
         period_start: (cost_cents / 100.0)
         for period_start, cost_cents in llm_cost_series_cents
     }
+    llm_cost_note = (
+        "AI cost is based on tracked LLM spend for Onyx-managed provider keys. "
+        "Bring-your-own keys are not included in this cost figure."
+    )
+    byok_estimation_note = (
+        "Estimated BYOK/untracked cost is directional: it uses chat message tokens "
+        f"at an assumed ${ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS:.4f} "
+        "per 1K tokens, minus tracked Onyx-managed cost (floored at $0)."
+    )
+    using_openai_org_costs = False
+
+    if OPENAI_ORG_ADMIN_KEY:
+        try:
+            llm_cost_usd_by_period = fetch_openai_cost_series_usd(
+                start=start,
+                end=end,
+                admin_api_key=OPENAI_ORG_ADMIN_KEY,
+                project_ids=OPENAI_ORG_PROJECT_IDS,
+            )
+            using_openai_org_costs = True
+
+            llm_cost_note = (
+                "AI cost is sourced from OpenAI Organization Costs API via "
+                "OPENAI_ORG_ADMIN_KEY."
+            )
+            if OPENAI_ORG_PROJECT_IDS:
+                llm_cost_note += " Results are filtered to configured OpenAI project IDs."
+            else:
+                llm_cost_note += (
+                    " No OpenAI project filter is configured; results may include all "
+                    "projects in the OpenAI organization."
+                )
+
+            byok_estimation_note = (
+                "Estimated untracked cost is directional: it uses chat message tokens "
+                f"at an assumed ${ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS:.4f} "
+                "per 1K tokens, minus OpenAI organization-tracked cost (floored at $0)."
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch OpenAI org costs, falling back to local tracked costs: %s",
+                e,
+            )
+
     estimated_chat_cost_usd_by_period: dict[datetime.date, float] = {
         period_start: (
             token_count / 1000.0 * ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS
@@ -405,12 +459,18 @@ def get_admin_dashboard(
         interval=interval,
     )
 
+    total_llm_cost_usd = (
+        round(sum(llm_cost_usd_by_period.values()), 2)
+        if using_openai_org_costs
+        else round(llm_cost_total_cents / 100.0, 2)
+    )
+
     return AdminDashboardResponse(
         total_messages=total_messages,
         total_unique_users=total_unique_users,
         total_likes=total_likes,
         total_dislikes=total_dislikes,
-        total_llm_cost_usd=round(llm_cost_total_cents / 100.0, 2),
+        total_llm_cost_usd=total_llm_cost_usd,
         total_estimated_byok_cost_usd=round(estimated_byok_total_usd, 2),
         cost_series=[
             CostSeriesPoint(
@@ -435,13 +495,193 @@ def get_admin_dashboard(
             for period_start, user_id, user_email, message_count in top_user_usage_series_raw
         ],
         selected_interval=interval,
-        cost_note=(
-            "AI cost is based on tracked LLM spend for Onyx-managed provider keys. "
-            "Bring-your-own keys are not included in this cost figure."
+        cost_note=llm_cost_note,
+        byok_estimation_note=byok_estimation_note,
+    )
+
+
+class OpenAIOrgSpendPoint(BaseModel):
+    period_start: datetime.date
+    cost_usd: float
+
+
+class OpenAIOrgCapabilitySeriesPoint(BaseModel):
+    period_start: datetime.date
+    request_count: int
+    metric_value: float
+
+
+class OpenAIOrgCapabilityResponse(BaseModel):
+    key: str
+    label: str
+    endpoint: str
+    metric_key: str
+    metric_label: str
+    total_requests: int
+    total_metric_value: float
+    series: list[OpenAIOrgCapabilitySeriesPoint]
+
+
+class OpenAIOrgAnalyticsResponse(BaseModel):
+    enabled: bool
+    period_start: datetime.date
+    period_end: datetime.date
+    total_spend_usd: float
+    total_tokens: int
+    total_requests: int
+    spend_series: list[OpenAIOrgSpendPoint]
+    capabilities: list[OpenAIOrgCapabilityResponse]
+    note: str
+
+
+def _build_openai_capability_response(
+    capability: OpenAIUsageCapabilityAggregate,
+) -> OpenAIOrgCapabilityResponse:
+    all_periods = sorted(
+        set(capability.requests_by_day).union(capability.metric_by_day)
+    )
+
+    return OpenAIOrgCapabilityResponse(
+        key=capability.key,
+        label=capability.label,
+        endpoint=capability.endpoint,
+        metric_key=capability.metric_key,
+        metric_label=capability.metric_label,
+        total_requests=capability.total_requests,
+        total_metric_value=round(capability.total_metric_value, 2),
+        series=[
+            OpenAIOrgCapabilitySeriesPoint(
+                period_start=period_start,
+                request_count=capability.requests_by_day.get(period_start, 0),
+                metric_value=round(capability.metric_by_day.get(period_start, 0.0), 2),
+            )
+            for period_start in all_periods
+        ],
+    )
+
+
+@router.get("/admin/openai-org")
+def get_openai_org_analytics(
+    start: datetime.datetime | None = None,
+    end: datetime.datetime | None = None,
+    _: User = Depends(current_admin_user),
+) -> OpenAIOrgAnalyticsResponse:
+    start = start or (
+        datetime.datetime.utcnow() - datetime.timedelta(days=_DEFAULT_LOOKBACK_DAYS)
+    )
+    end = end or datetime.datetime.utcnow()
+
+    if not OPENAI_ORG_ADMIN_KEY:
+        return OpenAIOrgAnalyticsResponse(
+            enabled=False,
+            period_start=start.date(),
+            period_end=end.date(),
+            total_spend_usd=0.0,
+            total_tokens=0,
+            total_requests=0,
+            spend_series=[],
+            capabilities=[],
+            note=(
+                "OpenAI org analytics is not configured. Set OPENAI_ORG_ADMIN_KEY "
+                "and optionally OPENAI_ORG_PROJECT_IDS."
+            ),
+        )
+
+    try:
+        cost_usd_by_period = fetch_openai_cost_series_usd(
+            start=start,
+            end=end,
+            admin_api_key=OPENAI_ORG_ADMIN_KEY,
+            project_ids=OPENAI_ORG_PROJECT_IDS,
+        )
+        capabilities = fetch_openai_usage_capabilities(
+            start=start,
+            end=end,
+            admin_api_key=OPENAI_ORG_ADMIN_KEY,
+            project_ids=OPENAI_ORG_PROJECT_IDS,
+        )
+    except Exception as e:
+        status_code = (
+            e.response.status_code
+            if isinstance(e, requests.HTTPError) and e.response is not None
+            else None
+        )
+        if status_code in (401, 403):
+            logger.warning(
+                "OpenAI org analytics auth/permission failure (status=%s): %s",
+                status_code,
+                e,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Failed to fetch OpenAI org analytics. Verify "
+                    "OPENAI_ORG_ADMIN_KEY has organization admin permissions."
+                ),
+            )
+
+        logger.warning(
+            "Failed to fetch OpenAI org analytics due to network/API issue, "
+            "returning disabled state: %s",
+            e,
+        )
+        return OpenAIOrgAnalyticsResponse(
+            enabled=False,
+            period_start=start.date(),
+            period_end=end.date(),
+            total_spend_usd=0.0,
+            total_tokens=0,
+            total_requests=0,
+            spend_series=[],
+            capabilities=[],
+            note=(
+                "OpenAI org analytics is temporarily unavailable due to an OpenAI "
+                "API/network timeout. Retry in a minute; if it persists, verify "
+                "connectivity to api.openai.com."
+            ),
+        )
+
+    capability_responses = [
+        _build_openai_capability_response(capability) for capability in capabilities
+    ]
+    total_requests = sum(capability.total_requests for capability in capabilities)
+
+    completion_capability = next(
+        (
+            capability
+            for capability in capabilities
+            if capability.key == "responses_and_chat_completions"
         ),
-        byok_estimation_note=(
-            "Estimated BYOK/untracked cost is directional: it uses chat message tokens "
-            f"at an assumed ${ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS:.4f} "
-            "per 1K tokens, minus tracked Onyx-managed cost (floored at $0)."
-        ),
+        None,
+    )
+    total_tokens = (
+        int(round(completion_capability.total_metric_value))
+        if completion_capability is not None
+        else 0
+    )
+
+    note = "Data is sourced from OpenAI Organization costs/usage APIs."
+    if OPENAI_ORG_PROJECT_IDS:
+        note += " Results are filtered to configured project IDs."
+    else:
+        note += " No project filter is configured (all org projects may be included)."
+    if not capabilities:
+        note += (
+            " Usage capability endpoints were unavailable for this request, so "
+            "capability metrics are not shown."
+        )
+
+    return OpenAIOrgAnalyticsResponse(
+        enabled=True,
+        period_start=start.date(),
+        period_end=end.date(),
+        total_spend_usd=round(sum(cost_usd_by_period.values()), 2),
+        total_tokens=total_tokens,
+        total_requests=total_requests,
+        spend_series=[
+            OpenAIOrgSpendPoint(period_start=period_start, cost_usd=round(cost_usd, 2))
+            for period_start, cost_usd in sorted(cost_usd_by_period.items())
+        ],
+        capabilities=capability_responses,
+        note=note,
     )

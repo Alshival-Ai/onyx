@@ -5,6 +5,7 @@ import { OnyxBotChart } from "@/app/ee/admin/performance/usage/OnyxBotChart";
 import { FeedbackChart } from "@/app/ee/admin/performance/usage/FeedbackChart";
 import { QueryPerformanceChart } from "@/app/ee/admin/performance/usage/QueryPerformanceChart";
 import { PersonaMessagesChart } from "@/app/ee/admin/performance/usage/PersonaMessagesChart";
+import { OpenAIOrgAnalyticsPanel } from "@/app/ee/admin/performance/usage/OpenAIOrgAnalyticsPanel";
 import { useTimeRange } from "@/app/ee/admin/performance/lib";
 import { AdminPageTitle } from "@/components/admin/Title";
 import UsageReports from "@/app/ee/admin/performance/usage/UsageReports";
@@ -24,6 +25,7 @@ export default function AnalyticsPage() {
         value={timeRange}
         onValueChange={(value) => setTimeRange(value as any)}
       />
+      <OpenAIOrgAnalyticsPanel timeRange={timeRange} />
       <ExecutiveDashboard timeRange={timeRange} />
       <QueryPerformanceChart timeRange={timeRange} />
       <FeedbackChart timeRange={timeRange} />

@@ -56,6 +56,40 @@ export interface AdminDashboardAnalytics {
   byok_estimation_note: string;
 }
 
+export interface OpenAIOrgSpendPoint {
+  period_start: string;
+  cost_usd: number;
+}
+
+export interface OpenAIOrgCapabilitySeriesPoint {
+  period_start: string;
+  request_count: number;
+  metric_value: number;
+}
+
+export interface OpenAIOrgCapability {
+  key: string;
+  label: string;
+  endpoint: string;
+  metric_key: string;
+  metric_label: string;
+  total_requests: number;
+  total_metric_value: number;
+  series: OpenAIOrgCapabilitySeriesPoint[];
+}
+
+export interface OpenAIOrgAnalytics {
+  enabled: boolean;
+  period_start: string;
+  period_end: string;
+  total_spend_usd: number;
+  total_tokens: number;
+  total_requests: number;
+  spend_series: OpenAIOrgSpendPoint[];
+  capabilities: OpenAIOrgCapability[];
+  note: string;
+}
+
 export interface AbridgedSearchDoc {
   document_id: string;
   semantic_identifier: string;
