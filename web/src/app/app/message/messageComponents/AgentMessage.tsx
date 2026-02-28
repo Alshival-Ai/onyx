@@ -14,6 +14,8 @@ import { LlmDescriptor, LlmManager } from "@/lib/hooks";
 import { Message } from "@/app/app/interfaces";
 import Text from "@/refresh-components/texts/Text";
 import { AgentTimeline } from "@/app/app/message/messageComponents/timeline/AgentTimeline";
+import { cn } from "@/lib/utils";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
 
 // Type for the regeneration factory function passed from ChatUI
 export type RegenerationFactory = (regenerationRequest: {
@@ -86,6 +88,7 @@ const AgentMessage = React.memo(function AgentMessage({
 }: AgentMessageProps) {
   const markdownRef = useRef<HTMLDivElement>(null);
   const finalAnswerRef = useRef<HTMLDivElement>(null);
+  const { hasBackground } = useAppBackground();
 
   // Process streaming packets: returns data and callbacks
   // Hook handles all state internally, exposes clean API
@@ -160,7 +163,12 @@ const AgentMessage = React.memo(function AgentMessage({
 
   return (
     <div
-      className="pb-5 md:pt-5 flex flex-col gap-3 pr-1"
+      className={cn(
+        "pb-5 md:pt-5 flex flex-col gap-3",
+        hasBackground
+          ? "rounded-16 bg-background-neutral-00/72 backdrop-blur-sm shadow-00 px-2 md:px-3"
+          : "pr-1"
+      )}
       data-testid={isComplete ? "onyx-ai-message" : undefined}
     >
       {/* Row 1: Two-column layout for tool steps */}

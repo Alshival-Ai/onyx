@@ -10,6 +10,7 @@ import CopyIconButton from "@/refresh-components/buttons/CopyIconButton";
 import { Button } from "@opal/components";
 import { SvgEdit } from "@opal/icons";
 import FileDisplay from "./FileDisplay";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
 
 interface MessageEditingProps {
   content: string;
@@ -130,6 +131,7 @@ const HumanMessage = React.memo(function HumanMessage({
   stopGenerating = () => null,
   disableSwitchingForStreaming = false,
 }: HumanMessageProps) {
+  const { hasBackground } = useAppBackground();
   // TODO (@raunakab):
   //
   // This is some duplicated state that is patching a memoization issue with `HumanMessage`.
@@ -194,9 +196,12 @@ const HumanMessage = React.memo(function HumanMessage({
           <>
             <div className="md:max-w-[37.5rem] flex basis-[100%] md:basis-auto justify-end md:order-1">
               <div
-                className={
-                  "max-w-[30rem] md:max-w-[37.5rem] whitespace-break-spaces rounded-t-16 rounded-bl-16 bg-background-tint-02 py-2 px-3"
-                }
+                className={cn(
+                  "max-w-[30rem] md:max-w-[37.5rem] whitespace-break-spaces py-2 px-3",
+                  hasBackground
+                    ? "bg-transparent"
+                    : "rounded-t-16 rounded-bl-16 bg-background-tint-02"
+                )}
                 onCopy={(e) => {
                   const selection = window.getSelection();
                   if (selection) {

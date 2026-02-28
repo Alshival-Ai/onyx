@@ -1,0 +1,133 @@
+.chat-text-light {
+  color: var(--text-light-05);
+}
+
+/* Force chat-area text utilities to render in light mode when selected */
+.chat-text-light .text-text-01,
+.chat-text-light .text-text-02,
+.chat-text-light .text-text-03,
+.chat-text-light .text-text-04,
+.chat-text-light .text-text-05,
+.chat-text-light .text-text-inverted-01,
+.chat-text-light .text-text-inverted-02,
+.chat-text-light .text-text-inverted-03,
+.chat-text-light .text-text-inverted-04,
+.chat-text-light .text-text-inverted-05 {
+  color: var(--text-light-05) !important;
+}
+
+.chat-text-light .text-link {
+  color: var(--text-light-03) !important;
+}
+
+.chat-text-light .hover\:text-link-hover:hover {
+  color: var(--text-light-05) !important;
+}
+
+.chat-text-light .text-muted-foreground {
+  color: var(--text-light-03) !important;
+}
+
+/* Keep message toolbar controls readable in light chat text mode */
+.chat-text-light [data-testid="AgentMessage/toolbar"] .interactive {
+  --interactive-foreground: var(--theme-primary-04) !important;
+  --interactive-foreground-icon: var(--theme-primary-04) !important;
+}
+
+.chat-text-light
+  [data-testid="AgentMessage/toolbar"]
+  .interactive[data-interactive-base-variant="select"] {
+  --interactive-foreground: var(--theme-primary-04) !important;
+  --interactive-foreground-icon: var(--theme-primary-04) !important;
+}
+
+/* Keep prose content aligned with selected chat text mode */
+.chat-text-light .prose {
+  color: var(--text-light-05);
+}
+
+.chat-text-light
+  .prose
+  :where(
+    p,
+    li,
+    strong,
+    em,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    blockquote,
+    code,
+    pre,
+    td,
+    th
+  ):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  color: inherit;
+}
+
+/* Use dark syntax palette when chat light-text mode is selected */
+.chat-text-light .hljs {
+  color: #e2e6eb !important;
+  background: #151617 !important;
+}
+
+.chat-text-light .hljs-comment,
+.chat-text-light .hljs-quote {
+  color: #5c6370;
+  font-style: italic;
+}
+
+.chat-text-light .hljs-doctag,
+.chat-text-light .hljs-keyword,
+.chat-text-light .hljs-formula {
+  color: #c678dd;
+}
+
+.chat-text-light .hljs-section,
+.chat-text-light .hljs-name,
+.chat-text-light .hljs-selector-tag,
+.chat-text-light .hljs-deletion,
+.chat-text-light .hljs-subst {
+  color: #e06c75;
+}
+
+.chat-text-light .hljs-literal {
+  color: #56b6c2;
+}
+
+.chat-text-light .hljs-string,
+.chat-text-light .hljs-regexp,
+.chat-text-light .hljs-addition,
+.chat-text-light .hljs-attribute,
+.chat-text-light .hljs-meta .hljs-string {
+  color: #98c379;
+}
+
+.chat-text-light .hljs-attr,
+.chat-text-light .hljs-variable,
+.chat-text-light .hljs-template-variable,
+.chat-text-light .hljs-type,
+.chat-text-light .hljs-selector-class,
+.chat-text-light .hljs-selector-attr,
+.chat-text-light .hljs-selector-pseudo,
+.chat-text-light .hljs-number {
+  color: #d19a66;
+}
+
+.chat-text-light .hljs-symbol,
+.chat-text-light .hljs-bullet,
+.chat-text-light .hljs-link,
+.chat-text-light .hljs-meta,
+.chat-text-light .hljs-selector-id,
+.chat-text-light .hljs-title {
+  color: #61aeee;
+}
+
+.chat-text-light .hljs-built_in,
+.chat-text-light .hljs-title.class_,
+.chat-text-light .hljs-class .hljs-title {
+  color: #e6c07b;
+}

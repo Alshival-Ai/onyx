@@ -10,7 +10,6 @@ import Text from "@/refresh-components/texts/Text";
 import { MinimalPersonaSnapshot } from "@/app/admin/assistants/interfaces";
 import { useState, useEffect } from "react";
 import { useSettingsContext } from "@/providers/SettingsProvider";
-import FrostedDiv from "@/refresh-components/FrostedDiv";
 
 export interface WelcomeMessageProps {
   agent?: MinimalPersonaSnapshot;
@@ -67,11 +66,11 @@ export default function WelcomeMessage({
   if (!content) return null;
 
   return (
-    <FrostedDiv
+    <div
       data-testid="chat-intro"
       className="flex flex-col items-center justify-center gap-3 w-full max-w-[var(--app-page-main-content-width)]"
     >
       {content}
-    </FrostedDiv>
+    </div>
   );
 }

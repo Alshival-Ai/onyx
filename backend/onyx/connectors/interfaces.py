@@ -146,6 +146,19 @@ class OAuthConnector(BaseConnector):
         pass
 
     @classmethod
+    def augment_oauth_additional_kwargs(
+        cls,
+        additional_kwargs: dict[str, str],
+    ) -> dict[str, str]:
+        """Allow connectors to add internal OAuth state values.
+
+        This is useful for providers that require generated OAuth values
+        (for example, PKCE code verifiers) that should be persisted between
+        authorization and callback.
+        """
+        return additional_kwargs
+
+    @classmethod
     @abc.abstractmethod
     def oauth_id(cls) -> DocumentSource:
         raise NotImplementedError

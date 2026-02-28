@@ -12,8 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Text from "@/components/ui/text";
-import Title from "@/components/ui/title";
 import Button from "@/refresh-components/buttons/Button";
 import useSWR from "swr";
 import React, { useState } from "react";
@@ -30,6 +28,7 @@ import Calendar from "@/refresh-components/Calendar";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/Spinner";
 import { SvgCalendar } from "@opal/icons";
+import Text from "@/refresh-components/texts/Text";
 
 function GenerateReportInput({
   onReportGenerated,
@@ -94,19 +93,19 @@ function GenerateReportInput({
   lastYear.setFullYear(today.getFullYear() - 1);
 
   return (
-    <div className="mb-8">
-      <Title className="mb-2">Generate Usage Reports</Title>
-      <Text className="mb-8">
+    <div className="rounded-16 border border-border-02 bg-background-tint-00 p-4 md:p-5">
+      <Text headingH3>Generate Usage Reports</Text>
+      <Text mainUiMuted text03 className="pt-1 pb-5">
         Generate usage statistics for users in the workspace.
       </Text>
-      <div className="grid gap-2 mb-3">
+      <div className="grid gap-2 pb-3">
         <Popover>
           <Popover.Trigger asChild>
             <Button
               secondary
               className={cn(
                 "w-[300px] justify-start text-left font-normal",
-                !dateRange && "text-muted-foreground"
+                !dateRange && "text-text-03"
               )}
               leftIcon={SvgCalendar}
             >
@@ -206,16 +205,18 @@ function GenerateReportInput({
       >
         {isWaitingForReport ? "Generating..." : "Generate Report"}
       </Button>
-      <p className="mt-1 text-xs">
+      <Text secondaryBody text03 className="pt-1">
         {isWaitingForReport
           ? "A report is currently being generated. Please wait..."
           : 'Report generation runs in the background. Check the "Previous Reports" section below to download when ready.'}
-      </p>
+      </Text>
       {errorOccurred && (
-        <ErrorCallout
-          errorTitle="Something went wrong."
-          errorMsg={errorOccurred?.toString()}
-        />
+        <div className="pt-3">
+          <ErrorCallout
+            errorTitle="Something went wrong."
+            errorMsg={errorOccurred?.toString()}
+          />
+        </div>
       )}
     </div>
   );
@@ -279,18 +280,22 @@ function UsageReportsTable({
 
   return (
     <div>
-      <Title className="mb-2 mt-6 mx-auto"> Previous Reports </Title>
+      <Text headingH3 className="pt-6">
+        Previous Reports
+      </Text>
       {usageReportsIsLoading && !isWaitingForReport ? (
-        <div className="flex justify-center w-full">
+        <div className="flex justify-center w-full pt-4">
           <ThreeDotsLoader />
         </div>
       ) : usageReportsError ? (
-        <ErrorCallout
-          errorTitle="Something went wrong."
-          errorMsg={(usageReportsError as Error).toString()}
-        />
+        <div className="pt-3">
+          <ErrorCallout
+            errorTitle="Something went wrong."
+            errorMsg={(usageReportsError as Error).toString()}
+          />
+        </div>
       ) : (
-        <>
+        <div className="pt-3 rounded-16 border border-border-02 bg-background-neutral-00 p-1">
           <Table>
             <TableHeader>
               <TableRow>
@@ -348,7 +353,7 @@ function UsageReportsTable({
               />
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -402,47 +407,26 @@ export default function UsageReports() {
   return (
     <>
       {isWaitingForReport && <Spinner />}
-      <>
-        <GenerateReportInput
-          onReportGenerated={handleReportGenerated}
-          isWaitingForReport={isWaitingForReport}
-        />
-        {timeoutMessage && (
-          <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-regular">
-            <div className="flex items-start gap-2">
-              <div className="text-amber-600 dark:text-amber-500 mt-0.5">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <Text className="text-amber-800 dark:text-amber-200 font-medium mb-1">
-                  Report Generation In Progress
-                </Text>
-                <Text className="text-amber-700 dark:text-amber-300 text-sm">
-                  {timeoutMessage}
-                </Text>
-              </div>
-            </div>
-          </div>
-        )}
-        <Separator />
-        <UsageReportsTable
-          refreshTrigger={refreshTrigger}
-          isWaitingForReport={isWaitingForReport}
-          onNewReportDetected={handleNewReportDetected}
-        />
-      </>
+      <GenerateReportInput
+        onReportGenerated={handleReportGenerated}
+        isWaitingForReport={isWaitingForReport}
+      />
+      {timeoutMessage && (
+        <div className="p-4 mt-4 rounded-12 border border-status-warning-02 bg-status-warning-01">
+          <Text mainUiAction className="text-status-text-warning-05">
+            Report Generation In Progress
+          </Text>
+          <Text secondaryBody className="text-status-text-warning-05 pt-1">
+            {timeoutMessage}
+          </Text>
+        </div>
+      )}
+      <Separator />
+      <UsageReportsTable
+        refreshTrigger={refreshTrigger}
+        isWaitingForReport={isWaitingForReport}
+        onNewReportDetected={handleNewReportDetected}
+      />
     </>
   );
 }

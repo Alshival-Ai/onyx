@@ -72,6 +72,10 @@ CONNECTOR_CLASS_MAP = {
         module_path="onyx.connectors.coda.connector",
         class_name="CodaConnector",
     ),
+    DocumentSource.CANVA: ConnectorMapping(
+        module_path="onyx.connectors.canva.connector",
+        class_name="CanvaConnector",
+    ),
     DocumentSource.NOTION: ConnectorMapping(
         module_path="onyx.connectors.notion.connector",
         class_name="NotionConnector",

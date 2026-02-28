@@ -4,6 +4,7 @@ import { IconProps } from "@opal/types";
 import { TimelineRow } from "@/app/app/message/messageComponents/timeline/primitives/TimelineRow";
 import { TimelineSurface } from "@/app/app/message/messageComponents/timeline/primitives/TimelineSurface";
 import { TimelineStepContent } from "@/app/app/message/messageComponents/timeline/primitives/TimelineStepContent";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
 
 export interface StepContainerProps {
   /** Main content */
@@ -56,6 +57,7 @@ export function StepContainer({
   noPaddingRight = false,
   withRail = true,
 }: StepContainerProps) {
+  const { hasBackground } = useAppBackground();
   const iconNode = StepIconComponent ? (
     <StepIconComponent
       className={cn(
@@ -70,6 +72,7 @@ export function StepContainer({
       className="flex-1 flex flex-col"
       isHover={isHover}
       roundedBottom={isLastStep}
+      background={hasBackground ? "transparent" : "tint"}
     >
       <TimelineStepContent
         header={header}

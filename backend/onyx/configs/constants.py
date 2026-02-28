@@ -186,6 +186,7 @@ class DocumentSource(str, Enum):
     PRODUCTBOARD = "productboard"
     FILE = "file"
     CODA = "coda"
+    CANVA = "canva"
     NOTION = "notion"
     ZULIP = "zulip"
     LINEAR = "linear"

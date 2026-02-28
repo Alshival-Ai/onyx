@@ -10,6 +10,8 @@ import { MessageRenderer, FullChatState } from "../interfaces";
 import { isFinalAnswerComplete } from "../../../services/packetUtils";
 import { useMarkdownRenderer } from "../markdownUtils";
 import { BlinkingDot } from "../../BlinkingDot";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
+import { cn } from "@/lib/utils";
 
 // Control the rate of packet streaming (packets per second)
 const PACKET_DELAY_MS = 10;
@@ -27,6 +29,7 @@ export const MessageTextRenderer: MessageRenderer<
   stopReason,
   children,
 }) => {
+  const { messageTextClassName, statusTextClassName } = useAppBackground();
   // If we're animating and the final answer is already complete, show more packets initially
   const initialPacketCount = animate
     ? packets.length > 0
@@ -118,7 +121,7 @@ export const MessageTextRenderer: MessageRenderer<
     // the [*]() is a hack to show a blinking dot when the packet is not complete
     stopPacketSeen ? content : content + " [*]() ",
     state,
-    "font-main-content-body"
+    cn("font-main-content-body", messageTextClassName)
   );
 
   const wasUserCancelled = stopReason === StopReason.USER_CANCELLED;
@@ -132,7 +135,12 @@ export const MessageTextRenderer: MessageRenderer<
           <>
             {renderedContent}
             {wasUserCancelled && (
-              <Text as="p" secondaryBody text04>
+              <Text
+                as="p"
+                secondaryBody
+                className={statusTextClassName ?? undefined}
+                text04={!statusTextClassName}
+              >
                 User has stopped generation
               </Text>
             )}

@@ -464,10 +464,16 @@ def fetch_user_last_login_map(
     user_ids: list[UUID],
     db_session: Session,
 ) -> dict[UUID, datetime.datetime]:
+    """Fetch a best-effort per-user last login timestamp.
+
+    Primary source is auth access token creation time. In deployments that use
+    Redis/JWT auth backends, access tokens may not exist in Postgres, so we
+    fall back to the latest chat session creation time to avoid empty values.
+    """
     if not user_ids:
         return {}
 
-    stmt = (
+    access_token_stmt = (
         select(
             AccessToken.user_id,
             func.max(AccessToken.created_at),
@@ -476,11 +482,30 @@ def fetch_user_last_login_map(
         .group_by(AccessToken.user_id)
     )
 
-    return {
+    chat_session_stmt = (
+        select(
+            ChatSession.user_id,
+            func.max(ChatSession.time_created),
+        )
+        .where(ChatSession.user_id.in_(user_ids))
+        .group_by(ChatSession.user_id)
+    )
+
+    last_login_map: dict[UUID, datetime.datetime] = {
         user_id: last_login
-        for user_id, last_login in db_session.execute(stmt)
+        for user_id, last_login in db_session.execute(access_token_stmt)
         if user_id is not None and last_login is not None
     }
+
+    for user_id, last_activity in db_session.execute(chat_session_stmt):
+        if user_id is None or last_activity is None:
+            continue
+
+        existing_login = last_login_map.get(user_id)
+        if existing_login is None or last_activity > existing_login:
+            last_login_map[user_id] = last_activity
+
+    return last_login_map
 
 
 def fetch_top_user_usage(
@@ -522,6 +547,93 @@ def fetch_top_user_usage(
         )
         for user_id, user_email, messages, tokens in db_session.execute(stmt)
         if user_id is not None and user_email is not None
+    ]
+
+
+def fetch_top_user_token_drivers(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+    limit: int = 10,
+) -> list[tuple[UUID, str, int, int]]:
+    """Fetch top users ranked by user-message token usage in the selected range."""
+    message_count = func.count(ChatMessage.id).label("message_count")
+    token_count = func.coalesce(func.sum(ChatMessage.token_count), 0).label("token_count")
+
+    stmt = (
+        select(
+            ChatSession.user_id,
+            User.email,
+            message_count,
+            token_count,
+        )
+        .join(ChatSession, ChatSession.id == ChatMessage.chat_session_id)
+        .join(User, User.id == ChatSession.user_id)
+        .where(
+            ChatMessage.time_sent >= start,
+            ChatMessage.time_sent <= end,
+            ChatMessage.message_type == MessageType.USER,
+            ChatSession.user_id.is_not(None),
+        )
+        .group_by(ChatSession.user_id, User.email)
+        .order_by(token_count.desc(), message_count.desc())
+        .limit(limit)
+    )
+
+    return [
+        (
+            user_id,
+            user_email,
+            int(messages or 0),
+            int(tokens or 0),
+        )
+        for user_id, user_email, messages, tokens in db_session.execute(stmt)
+        if user_id is not None and user_email is not None
+    ]
+
+
+def fetch_top_assistant_token_drivers(
+    start: datetime.datetime,
+    end: datetime.datetime,
+    db_session: Session,
+    limit: int = 10,
+) -> list[tuple[int | None, str, int, int]]:
+    """Fetch top assistants ranked by assistant-message token usage."""
+    response_count = func.count(ChatMessage.id).label("response_count")
+    token_count = func.coalesce(func.sum(ChatMessage.token_count), 0).label("token_count")
+    assistant_name = func.coalesce(Persona.name, "Default Assistant").label(
+        "assistant_name"
+    )
+
+    stmt = (
+        select(
+            ChatSession.persona_id,
+            assistant_name,
+            response_count,
+            token_count,
+        )
+        .join(ChatSession, ChatSession.id == ChatMessage.chat_session_id)
+        .join(Persona, Persona.id == ChatSession.persona_id, isouter=True)
+        .where(
+            ChatMessage.time_sent >= start,
+            ChatMessage.time_sent <= end,
+            ChatMessage.message_type == MessageType.ASSISTANT,
+            ChatSession.user_id.is_not(None),
+        )
+        .group_by(ChatSession.persona_id, Persona.name)
+        .order_by(token_count.desc(), response_count.desc())
+        .limit(limit)
+    )
+
+    return [
+        (
+            assistant_id,
+            str(name),
+            int(responses or 0),
+            int(tokens or 0),
+        )
+        for assistant_id, name, responses, tokens in db_session.execute(stmt)
+        if name is not None
     ]
 
 

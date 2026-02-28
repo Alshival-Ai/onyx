@@ -1,11 +1,11 @@
 import { ThreeDotsLoader } from "@/components/Loading";
 import { getDatesList, useQueryAnalytics } from "../lib";
-import Text from "@/components/ui/text";
-import Title from "@/components/ui/title";
 
 import { DateRangePickerValue } from "@/components/dateRangeSelectors/AdminDateRangeSelector";
 import CardSection from "@/components/admin/CardSection";
 import { AreaChartDisplay } from "@/components/ui/areaChart";
+import Text from "@/refresh-components/texts/Text";
+import { ErrorCallout } from "@/components/ErrorCallout";
 
 export function FeedbackChart({
   timeRange,
@@ -31,8 +31,11 @@ export function FeedbackChart({
     queryAnalyticsError
   ) {
     chart = (
-      <div className="h-80 text-red-600 text-bold flex flex-col">
-        <p className="m-auto">Failed to fetch feedback data...</p>
+      <div className="pt-4">
+        <ErrorCallout
+          errorTitle="Failed to load feedback trends"
+          errorMsg="Please refresh and try again."
+        />
       </div>
     );
   } else {
@@ -66,10 +69,12 @@ export function FeedbackChart({
   }
 
   return (
-    <CardSection className="mt-8">
-      <Title>Feedback</Title>
-      <Text>Thumbs Up / Thumbs Down over time</Text>
-      {chart}
+    <CardSection className="mt-6 border-border-02 bg-background-tint-00">
+      <Text headingH3>Feedback</Text>
+      <Text mainUiMuted text03 className="pt-1">
+        Daily positive vs negative responses.
+      </Text>
+      <div className="pt-2">{chart}</div>
     </CardSection>
   );
 }

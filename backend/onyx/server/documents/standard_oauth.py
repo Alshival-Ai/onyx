@@ -107,6 +107,9 @@ def oauth_authorize(
     additional_kwargs = _get_additional_kwargs(
         request, connector_cls, ["desired_return_url"]
     )
+    additional_kwargs = connector_cls.augment_oauth_additional_kwargs(
+        additional_kwargs
+    )
 
     # store state in redis
     if not desired_return_url:

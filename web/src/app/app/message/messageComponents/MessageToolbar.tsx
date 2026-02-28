@@ -29,6 +29,8 @@ import FeedbackModal, {
   FeedbackModalProps,
 } from "@/sections/modals/FeedbackModal";
 import { Button } from "@opal/components";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
+import { cn } from "@/lib/utils";
 
 // Wrapper component for SourceTag in toolbar to handle memoization
 const SourcesTagWrapper = React.memo(function SourcesTagWrapper({
@@ -133,6 +135,7 @@ export default function MessageToolbar({
   citations,
   documentMap,
 }: MessageToolbarProps) {
+  const { hasBackground } = useAppBackground();
   // Document sidebar state - managed internally to reduce prop drilling
   const documentSidebarVisible = useDocumentSidebarVisible();
   const selectedMessageForDocDisplay = useSelectedNodeForDocDisplay();
@@ -214,7 +217,12 @@ export default function MessageToolbar({
         className="flex md:flex-row justify-between items-center w-full transition-transform duration-300 ease-in-out transform opacity-100 pl-1"
       >
         <TooltipGroup>
-          <div className="flex items-center">
+          <div
+            className={cn(
+              "flex items-center",
+              hasBackground && "text-theme-primary-04"
+            )}
+          >
             {includeMessageSwitcher && (
               <div className="-mx-1">
                 <MessageSwitcher

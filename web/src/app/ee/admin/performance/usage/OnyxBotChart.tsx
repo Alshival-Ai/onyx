@@ -1,10 +1,10 @@
 import { ThreeDotsLoader } from "@/components/Loading";
 import { getDatesList, useOnyxBotAnalytics } from "../lib";
 import { DateRangePickerValue } from "@/components/dateRangeSelectors/AdminDateRangeSelector";
-import Text from "@/components/ui/text";
-import Title from "@/components/ui/title";
 import CardSection from "@/components/admin/CardSection";
 import { AreaChartDisplay } from "@/components/ui/areaChart";
+import Text from "@/refresh-components/texts/Text";
+import { ErrorCallout } from "@/components/ErrorCallout";
 
 export function OnyxBotChart({
   timeRange,
@@ -30,8 +30,11 @@ export function OnyxBotChart({
     onyxBotAnalyticsError
   ) {
     chart = (
-      <div className="h-80 text-red-600 text-bold flex flex-col">
-        <p className="m-auto">Failed to fetch feedback data...</p>
+      <div className="pt-4">
+        <ErrorCallout
+          errorTitle="Failed to load channel analytics"
+          errorMsg="Please refresh and try again."
+        />
       </div>
     );
   } else {
@@ -67,10 +70,12 @@ export function OnyxBotChart({
   }
 
   return (
-    <CardSection className="mt-8">
-      <Title>Slack Channel</Title>
-      <Text>Total Queries vs Auto Resolved</Text>
-      {chart}
+    <CardSection className="mt-6 border-border-02 bg-background-tint-00">
+      <Text headingH3>Slack Channel</Text>
+      <Text mainUiMuted text03 className="pt-1">
+        Total queries compared with auto-resolved outcomes.
+      </Text>
+      <div className="pt-2">{chart}</div>
     </CardSection>
   );
 }

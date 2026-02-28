@@ -10,6 +10,9 @@ import { LlmDescriptor, LlmManager } from "@/lib/hooks";
 import AgentMessage from "@/app/app/message/messageComponents/AgentMessage";
 import Spacer from "@/refresh-components/Spacer";
 import DynamicBottomSpacer from "@/components/chat/DynamicBottomSpacer";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
+import { cn } from "@/lib/utils";
+import "@/sections/chat/chat-text-color-overrides.css";
 import {
   useCurrentMessageHistory,
   useCurrentMessageTree,
@@ -63,6 +66,8 @@ const ChatUI = React.memo(
     onResubmit,
     anchorNodeId,
   }: ChatUIProps) => {
+    const { chatTextModeClassName } = useAppBackground();
+
     // Get messages and error state from store
     const messages = useCurrentMessageHistory();
     const messageTree = useCurrentMessageTree();
@@ -114,7 +119,12 @@ const ChatUI = React.memo(
     );
 
     return (
-      <div className="w-full max-w-[var(--app-page-main-content-width)] h-full">
+      <div
+        className={cn(
+          "w-full max-w-[var(--app-page-main-content-width)] h-full",
+          chatTextModeClassName
+        )}
+      >
         <Spacer />
         {messages.map((message, i) => {
           const messageReactComponentKey = `message-${message.nodeId}`;

@@ -34,6 +34,10 @@ const integerFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+function applyBrandingCopy(text: string): string {
+  return text.replace(/\bonyx\b/gi, "StarwoodGPT");
+}
+
 function formatPeriodLabel(periodStart: string) {
   return new Date(periodStart).toLocaleDateString("en-US", {
     month: "short",
@@ -101,7 +105,7 @@ export function OpenAIOrgAnalyticsPanel({
       {!isLoading && data && !data.enabled ? (
         <div className="rounded-12 border border-border-02 bg-background-neutral-00 p-4">
           <Text secondaryBody text03>
-            {data.note}
+            {applyBrandingCopy(data.note)}
           </Text>
         </div>
       ) : null}
@@ -140,7 +144,7 @@ export function OpenAIOrgAnalyticsPanel({
               OpenAI Spend Over Time
             </Text>
             <Text secondaryBody text04>
-              {data.note}
+              {applyBrandingCopy(data.note)}
             </Text>
             <AreaChartDisplay
               className="mt-2"

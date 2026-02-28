@@ -10,6 +10,7 @@ import {
 } from "./TimelineRendererComponent";
 import { TimelineRow } from "@/app/app/message/messageComponents/timeline/primitives/TimelineRow";
 import { TimelineSurface } from "@/app/app/message/messageComponents/timeline/primitives/TimelineSurface";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
 
 export interface CollapsedStreamingContentProps {
   step: TransformedStep;
@@ -25,6 +26,7 @@ export const CollapsedStreamingContent = React.memo(
     stopReason,
     renderTypeOverride,
   }: CollapsedStreamingContentProps) {
+    const { hasBackground } = useAppBackground();
     const noopComplete = useCallback(() => {}, []);
     const renderContentOnly = useCallback(
       (results: TimelineRendererOutput) => (
@@ -39,7 +41,11 @@ export const CollapsedStreamingContent = React.memo(
 
     return (
       <TimelineRow railVariant="spacer">
-        <TimelineSurface className="px-2 pb-2" roundedBottom>
+        <TimelineSurface
+          className="px-2 pb-2"
+          roundedBottom
+          background={hasBackground ? "transparent" : "tint"}
+        >
           <TimelineRendererComponent
             key={`${step.key}-compact`}
             packets={step.packets}

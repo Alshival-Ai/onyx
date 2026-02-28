@@ -4,9 +4,9 @@ import { DateRangePickerValue } from "@/components/dateRangeSelectors/AdminDateR
 import { getDatesList, useQueryAnalytics, useUserAnalytics } from "../lib";
 import { ThreeDotsLoader } from "@/components/Loading";
 import { AreaChartDisplay } from "@/components/ui/areaChart";
-import Title from "@/components/ui/title";
-import Text from "@/components/ui/text";
 import CardSection from "@/components/admin/CardSection";
+import Text from "@/refresh-components/texts/Text";
+import { ErrorCallout } from "@/components/ErrorCallout";
 
 export function QueryPerformanceChart({
   timeRange,
@@ -39,8 +39,11 @@ export function QueryPerformanceChart({
     userAnalyticsError
   ) {
     chart = (
-      <div className="h-80 text-red-600 text-bold flex flex-col">
-        <p className="m-auto">Failed to fetch query data...</p>
+      <div className="pt-4">
+        <ErrorCallout
+          errorTitle="Failed to load usage trends"
+          errorMsg="Please refresh and try again."
+        />
       </div>
     );
   } else {
@@ -96,10 +99,12 @@ export function QueryPerformanceChart({
   }
 
   return (
-    <CardSection className="mt-8">
-      <Title>Usage</Title>
-      <Text>Usage over time</Text>
-      {chart}
+    <CardSection className="mt-6 border-border-02 bg-background-tint-00">
+      <Text headingH3>Usage</Text>
+      <Text mainUiMuted text03 className="pt-1">
+        Daily query volume and active users.
+      </Text>
+      <div className="pt-2">{chart}</div>
     </CardSection>
   );
 }

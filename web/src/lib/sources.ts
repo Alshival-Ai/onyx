@@ -203,6 +203,12 @@ export const SOURCE_METADATA_MAP: SourceMap = {
     category: SourceCategory.Storage,
     docs: `${DOCS_ADMINS_PATH}/connectors/official/dropbox`,
   },
+  canva: {
+    icon: SvgGlobe,
+    displayName: "Canva",
+    category: SourceCategory.Storage,
+    oauthSupported: true,
+  },
   s3: {
     icon: S3Icon,
     displayName: "S3",

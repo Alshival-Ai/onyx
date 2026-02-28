@@ -250,11 +250,11 @@
   --shimmer-highlight: #000000;
 
   /* Text */
-  --text-05: var(--starwood-forest-40);
-  --text-04: var(--starwood-forest-30);
-  --text-03: var(--starwood-forest-20);
-  --text-02: var(--starwood-forest-10);
-  --text-01: var(--starwood-forest-05);
+  --text-05: var(--starwood-forest-100);
+  --text-04: var(--starwood-forest-95);
+  --text-03: var(--starwood-forest-90);
+  --text-02: var(--starwood-forest-80);
+  --text-01: var(--starwood-forest-70);
   --text-inverted-01: var(--alpha-grey-00-20);
   --text-inverted-02: var(--alpha-grey-00-45);
   --text-inverted-03: var(--alpha-grey-00-60);
@@ -307,9 +307,9 @@
   --border-inverted-01: var(--grey-80);
 
   /* Theme */
-  --theme-primary-06: var(--starwood-forest-30);
-  --theme-primary-05: var(--starwood-forest-20);
-  --theme-primary-04: var(--starwood-forest-10);
+  --theme-primary-06: var(--starwood-forest-80);
+  --theme-primary-05: var(--starwood-site-green-50);
+  --theme-primary-04: var(--starwood-forest-60);
 
   /* Theme / Gradient */
   --theme-gradient-05: var(--tint-50);

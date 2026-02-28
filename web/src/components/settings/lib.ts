@@ -62,6 +62,7 @@ export async function fetchSettingsSS(): Promise<CombinedSettings | null> {
           temperature_override_enabled: true,
           query_history_type: QueryHistoryType.NORMAL,
           chat_background: null,
+          chat_text_color: null,
         };
       } else {
         throw new Error(

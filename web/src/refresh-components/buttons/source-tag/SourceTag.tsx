@@ -23,6 +23,7 @@ import { ValidSources } from "@/lib/types";
 import SourceTagDetailsCard, {
   SourceInfo,
 } from "@/refresh-components/buttons/source-tag/SourceTagDetailsCard";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
 
 export type { SourceInfo };
 
@@ -133,6 +134,7 @@ interface IconStackProps {
   isQuery?: boolean;
   isOpen: boolean;
   showDetailsCard: boolean;
+  hasBackground: boolean;
 }
 
 /**
@@ -151,6 +153,7 @@ const IconStack = ({
   isQuery,
   isOpen,
   showDetailsCard,
+  hasBackground,
 }: IconStackProps) => (
   <div className="flex items-center -space-x-1.5">
     {sources.slice(0, 3).map((source, index) => (
@@ -158,13 +161,16 @@ const IconStack = ({
         key={source.id ?? `source-${index}`}
         className={cn(
           "relative flex items-center justify-center p-0.5 rounded-04",
-          !isQuery && "bg-background-tint-00",
+          !isQuery && !hasBackground && "bg-background-tint-00",
           "border transition-colors duration-150",
-          isOpen
-            ? "border-background-tint-inverted-03"
-            : "border-background-tint-02",
+          hasBackground
+            ? "border-border-inverted-03"
+            : isOpen
+              ? "border-background-tint-inverted-03"
+              : "border-background-tint-02",
           !showDetailsCard &&
             !isQuery &&
+            !hasBackground &&
             "group-hover:border-background-tint-inverted-03"
         )}
         style={{ zIndex: sources.length - index }}
@@ -367,10 +373,12 @@ const SourceTagInner = ({
   toggleSource,
   tooltipText,
 }: SourceTagProps) => {
+  const { hasBackground } = useAppBackground();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const { isTruncated, textRef } = useIsTruncated(displayName);
+  const shouldShowDetailsCard = showDetailsCard && !hasBackground;
 
   const uniqueSources = useMemo(
     () =>
@@ -408,12 +416,20 @@ const SourceTagInner = ({
 
   // Background class based on mode and state
   const backgroundClass = useMemo(() => {
+    if (hasBackground) return "bg-transparent hover:bg-transparent";
     if (isOpen) return "bg-background-tint-inverted-03";
     if (isMore || toggleSource) return "hover:bg-background-tint-02";
-    if (!showDetailsCard && !isQuery)
+    if (!shouldShowDetailsCard && !isQuery)
       return "bg-background-tint-02 hover:bg-background-tint-inverted-03";
     return "bg-background-tint-02";
-  }, [isOpen, isMore, toggleSource, showDetailsCard, isQuery]);
+  }, [
+    hasBackground,
+    isOpen,
+    isMore,
+    toggleSource,
+    shouldShowDetailsCard,
+    isQuery,
+  ]);
 
   const handlePrev = useCallback(() => {
     setCurrentIndex((prev) => Math.max(0, prev - 1));
@@ -460,7 +476,8 @@ const SourceTagInner = ({
           sources={uniqueSources}
           isQuery={isQuery}
           isOpen={isOpen}
-          showDetailsCard={showDetailsCard}
+          showDetailsCard={shouldShowDetailsCard}
+          hasBackground={hasBackground}
         />
       )}
 
@@ -485,7 +502,8 @@ const SourceTagInner = ({
             {...textStyleProps}
             className={cn(
               "max-w-[10rem] truncate transition-colors duration-150",
-              !showDetailsCard &&
+              hasBackground && "text-text-inverted-05",
+              !shouldShowDetailsCard &&
                 !isQuery &&
                 "group-hover:text-text-inverted-05"
             )}
@@ -503,7 +521,8 @@ const SourceTagInner = ({
             inverted={isOpen}
             className={cn(
               "transition-colors duration-150",
-              !showDetailsCard &&
+              hasBackground && "text-text-inverted-05",
+              !shouldShowDetailsCard &&
                 !isQuery &&
                 "group-hover:text-text-inverted-05"
             )}
@@ -521,7 +540,8 @@ const SourceTagInner = ({
             inverted={isOpen}
             className={cn(
               "max-w-[10rem] truncate transition-colors duration-150",
-              !showDetailsCard &&
+              hasBackground && "text-text-inverted-04",
+              !shouldShowDetailsCard &&
                 !isQuery &&
                 "group-hover:text-text-inverted-05"
             )}
@@ -533,7 +553,7 @@ const SourceTagInner = ({
     </button>
   );
 
-  if (!showDetailsCard || toggleSource) {
+  if (!shouldShowDetailsCard || toggleSource) {
     return buttonContent;
   }
 

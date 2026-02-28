@@ -91,6 +91,9 @@ services:
       # Linear OAuth Configs
       - LINEAR_CLIENT_ID=${LINEAR_CLIENT_ID:-}
       - LINEAR_CLIENT_SECRET=${LINEAR_CLIENT_SECRET:-}
+      # Canva OAuth Configs
+      - CANVA_CLIENT_ID=${CANVA_CLIENT_ID:-}
+      - CANVA_CLIENT_SECRET=${CANVA_CLIENT_SECRET:-}
       # Analytics Configs
       - SENTRY_DSN=${SENTRY_DSN:-}
       # Chat Configs
@@ -207,6 +210,9 @@ services:
       # Lienar OAuth Configs
       - LINEAR_CLIENT_ID=${LINEAR_CLIENT_ID:-}
       - LINEAR_CLIENT_SECRET=${LINEAR_CLIENT_SECRET:-}
+      # Canva OAuth Configs
+      - CANVA_CLIENT_ID=${CANVA_CLIENT_ID:-}
+      - CANVA_CLIENT_SECRET=${CANVA_CLIENT_SECRET:-}
       # Celery Configs (defaults are set in the supervisord.conf file.
       # prefer doing that to have one source of defaults)
       - CELERY_WORKER_DOCFETCHING_CONCURRENCY=${CELERY_WORKER_DOCFETCHING_CONCURRENCY:-}

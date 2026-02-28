@@ -1091,6 +1091,42 @@ For example, specifying .*-support.* as a "channel" will cause the connector to 
     values: [],
     advanced_values: [],
   },
+  canva: {
+    description: "Configure Canva connector",
+    subtext:
+      "Leave Folder IDs empty to index all accessible designs. Add Folder IDs to only index specific folders.",
+    values: [
+      {
+        type: "list",
+        label: "Folder IDs",
+        name: "folder_ids",
+        optional: true,
+        description:
+          "Optional. Restrict indexing to specific Canva folder IDs, one per row.",
+        transform: (values: string[]) => {
+          const seen = new Set<string>();
+          return values
+            .map((value) => value.trim())
+            .filter((value) => {
+              if (!value || seen.has(value)) {
+                return false;
+              }
+              seen.add(value);
+              return true;
+            });
+        },
+      },
+      {
+        type: "text",
+        label: "Search Query",
+        name: "query",
+        optional: true,
+        description:
+          "Optional. Search term used when indexing all designs (ignored if Folder IDs are set).",
+      },
+    ],
+    advanced_values: [],
+  },
   notion: {
     description: "Configure Notion connector",
     values: [

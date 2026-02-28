@@ -16,11 +16,14 @@ import { AnonymousUserPath } from "./AnonymousUserPath";
 import LLMSelector from "@/components/llm/LLMSelector";
 import { useVisionProviders } from "./hooks/useVisionProviders";
 import InputTextArea from "@/refresh-components/inputs/InputTextArea";
+import InputSelect from "@/refresh-components/inputs/InputSelect";
 import { cn } from "@/lib/utils";
 import { SvgAlertTriangle } from "@opal/icons";
 import {
   CHAT_BACKGROUND_OPTIONS,
   CHAT_BACKGROUND_NONE,
+  CHAT_TEXT_COLOR_AUTO,
+  CHAT_TEXT_COLOR_OPTIONS,
 } from "@/lib/constants/chatBackgrounds";
 
 export function Checkbox({
@@ -129,7 +132,8 @@ export function SettingsForm() {
       ? {
           ...settings,
           ...updateRequests.reduce((acc, { fieldName, newValue }) => {
-            acc[fieldName] = newValue ?? settings[fieldName];
+            acc[fieldName] =
+              newValue === undefined ? settings[fieldName] : newValue;
             return acc;
           }, {} as Partial<Settings>),
         }
@@ -226,6 +230,15 @@ export function SettingsForm() {
     ]);
   }
 
+  function handleSetGlobalChatTextColor(chatTextColor: string) {
+    updateSettingField([
+      {
+        fieldName: "chat_text_color",
+        newValue: chatTextColor === CHAT_TEXT_COLOR_AUTO ? null : chatTextColor,
+      },
+    ]);
+  }
+
   return (
     <>
       <Title className="mb-4">Workspace Settings</Title>
@@ -302,6 +315,33 @@ export function SettingsForm() {
               </button>
             );
           })}
+        </div>
+      </label>
+
+      <label className="flex flex-col text-sm mb-4">
+        <Label>Chat Text Color</Label>
+        <SubLabel>
+          Controls text color only in the chat content area. Sidebar and admin
+          UI colors are unchanged.
+        </SubLabel>
+        <div className="mt-2 w-full max-w-xs">
+          <InputSelect
+            value={settings.chat_text_color ?? CHAT_TEXT_COLOR_AUTO}
+            onValueChange={handleSetGlobalChatTextColor}
+          >
+            <InputSelect.Trigger />
+            <InputSelect.Content>
+              {CHAT_TEXT_COLOR_OPTIONS.map((option) => (
+                <InputSelect.Item
+                  key={option.id}
+                  value={option.id}
+                  description={option.description}
+                >
+                  {option.label}
+                </InputSelect.Item>
+              ))}
+            </InputSelect.Content>
+          </InputSelect>
         </div>
       </label>
 

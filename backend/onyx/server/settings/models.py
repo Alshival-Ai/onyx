@@ -82,6 +82,9 @@ class Settings(BaseModel):
 
     # Global chat background (workspace-level default)
     chat_background: str | None = None
+    # Global chat text color override for chat content area
+    # Values used by the frontend: "dark", "light", or null/"auto"
+    chat_text_color: str | None = None
 
     # OpenSearch migration
     opensearch_indexing_enabled: bool = False

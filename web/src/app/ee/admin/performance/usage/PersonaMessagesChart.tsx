@@ -6,8 +6,6 @@ import {
   usePersonaUniqueUsers,
 } from "../lib";
 import { DateRangePickerValue } from "@/components/dateRangeSelectors/AdminDateRangeSelector";
-import Text from "@/components/ui/text";
-import Title from "@/components/ui/title";
 import CardSection from "@/components/admin/CardSection";
 import { AreaChartDisplay } from "@/components/ui/areaChart";
 import {
@@ -19,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { useState, useMemo, useEffect } from "react";
 import { Persona } from "@/app/admin/assistants/interfaces";
+import Text from "@/refresh-components/texts/Text";
+import { ErrorCallout } from "@/components/ErrorCallout";
 
 export function PersonaMessagesChart({
   availablePersonas,
@@ -145,22 +145,27 @@ export function PersonaMessagesChart({
     );
   } else if (!availablePersonas || hasError) {
     content = (
-      <div className="h-80 text-red-600 text-bold flex flex-col">
-        <p className="m-auto">Failed to fetch data...</p>
+      <div className="pt-4">
+        <ErrorCallout
+          errorTitle="Failed to load assistant analytics"
+          errorMsg="Please refresh and try again."
+        />
       </div>
     );
   } else if (selectedPersonaId === undefined) {
     content = (
-      <div className="h-80 text-text-500 flex flex-col">
-        <p className="m-auto">Select an assistant to view analytics</p>
+      <div className="h-80 flex items-center justify-center rounded-12 border border-border-02 bg-background-neutral-00">
+        <Text mainUiMuted text03>
+          Select an assistant to view analytics.
+        </Text>
       </div>
     );
   } else if (!personaMessagesData?.length) {
     content = (
-      <div className="h-80 text-text-500 flex flex-col">
-        <p className="m-auto">
+      <div className="h-80 flex items-center justify-center rounded-12 border border-border-02 bg-background-neutral-00 p-4">
+        <Text mainUiMuted text03 className="text-center">
           No data found for selected assistant in the specified time range
-        </p>
+        </Text>
       </div>
     );
   } else if (chartData) {
@@ -177,59 +182,64 @@ export function PersonaMessagesChart({
   }
 
   return (
-    <CardSection className="mt-8">
-      <Title>Assistant Analytics</Title>
-      <div className="flex flex-col gap-4">
-        <Text>
+    <CardSection className="mt-6 border-border-02 bg-background-tint-00">
+      <Text headingH3>Assistant Analytics</Text>
+      <div className="flex flex-col gap-4 pt-1">
+        <Text mainUiMuted text03>
           Messages and unique users per day for the selected assistant
         </Text>
         <div className="flex items-center gap-4">
-          <Select
-            value={selectedPersonaId?.toString() ?? ""}
-            onValueChange={(value) => {
-              setSelectedPersonaId(parseInt(value));
-            }}
-          >
-            <SelectTrigger className="flex w-full max-w-xs">
-              <SelectValue placeholder="Select an assistant to display" />
-            </SelectTrigger>
-            <SelectContent>
-              <div className="flex items-center px-2 pb-2 sticky top-0 bg-background border-b">
-                <Search className="h-4 w-4 mr-2 shrink-0 opacity-50" />
-                <input
-                  className="flex h-8 w-full rounded-sm bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="Search assistants..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onKeyDown={handleKeyDown}
-                />
-                {searchQuery && (
-                  <X
-                    className="h-4 w-4 shrink-0 opacity-50 cursor-pointer hover:opacity-100"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setHighlightedIndex(-1);
-                    }}
+          <div className="flex flex-col gap-1 w-full max-w-xs">
+            <Text secondaryAction text03>
+              Assistant filter
+            </Text>
+            <Select
+              value={selectedPersonaId?.toString() ?? ""}
+              onValueChange={(value) => {
+                setSelectedPersonaId(parseInt(value));
+              }}
+            >
+              <SelectTrigger className="flex w-full">
+                <SelectValue placeholder="Select an assistant to display" />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="flex items-center px-2 pb-2 sticky top-0 bg-background border-b">
+                  <Search className="h-4 w-4 mr-2 shrink-0 opacity-50" />
+                  <input
+                    className="flex h-8 w-full rounded-sm bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="Search assistants..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={handleKeyDown}
                   />
-                )}
-              </div>
-              {filteredPersonaList.map((persona, index) => (
-                <SelectItem
-                  key={persona.id}
-                  value={persona.id.toString()}
-                  className={`${highlightedIndex === index ? "hover" : ""}`}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                >
-                  {persona.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  {searchQuery && (
+                    <X
+                      className="h-4 w-4 shrink-0 opacity-50 cursor-pointer hover:opacity-100"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setHighlightedIndex(-1);
+                      }}
+                    />
+                  )}
+                </div>
+                {filteredPersonaList.map((persona, index) => (
+                  <SelectItem
+                    key={persona.id}
+                    value={persona.id.toString()}
+                    className={`${highlightedIndex === index ? "hover" : ""}`}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                  >
+                    {persona.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
-      {content}
+      <div className="pt-2">{content}</div>
     </CardSection>
   );
 }

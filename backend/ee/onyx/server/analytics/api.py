@@ -24,7 +24,9 @@ from ee.onyx.db.analytics import fetch_persona_message_analytics
 from ee.onyx.db.analytics import fetch_persona_unique_users
 from ee.onyx.db.analytics import fetch_query_analytics
 from ee.onyx.db.analytics import fetch_top_user_usage
+from ee.onyx.db.analytics import fetch_top_user_token_drivers
 from ee.onyx.db.analytics import fetch_top_user_usage_series
+from ee.onyx.db.analytics import fetch_top_assistant_token_drivers
 from ee.onyx.db.analytics import fetch_usage_summary
 from ee.onyx.db.analytics import fetch_user_last_login_map
 from ee.onyx.db.analytics import user_can_view_assistant_stats
@@ -316,6 +318,32 @@ class DashboardUserUsagePoint(BaseModel):
     message_count: int
 
 
+class DashboardUserCostDriver(BaseModel):
+    user_id: str
+    user_email: str
+    message_count: int
+    token_count: int
+    token_share_percent: float
+    estimated_cost_usd: float
+
+
+class DashboardAssistantCostDriver(BaseModel):
+    assistant_id: int | None
+    assistant_name: str
+    response_count: int
+    token_count: int
+    token_share_percent: float
+    estimated_cost_usd: float
+
+
+class DashboardCostDriverBreakdown(BaseModel):
+    total_chat_tokens: int
+    estimated_chat_cost_basis_usd: float
+    user_drivers: list[DashboardUserCostDriver]
+    assistant_drivers: list[DashboardAssistantCostDriver]
+    note: str
+
+
 class AdminDashboardResponse(BaseModel):
     total_messages: int
     total_unique_users: int
@@ -326,6 +354,7 @@ class AdminDashboardResponse(BaseModel):
     cost_series: list[CostSeriesPoint]
     top_users: list[DashboardTopUser]
     top_user_usage_series: list[DashboardUserUsagePoint]
+    cost_driver_breakdown: DashboardCostDriverBreakdown
     selected_interval: Literal["week", "month"]
     cost_note: str
     byok_estimation_note: str
@@ -424,6 +453,36 @@ def get_admin_dashboard(
         )
     }
     estimated_byok_total_usd = sum(estimated_byok_cost_usd_by_period.values())
+    total_chat_tokens = sum(token_count for _, token_count in chat_token_series)
+    estimated_chat_cost_basis_usd = round(
+        sum(estimated_chat_cost_usd_by_period.values()),
+        2,
+    )
+
+    def _token_share_percent(token_count: int) -> float:
+        if total_chat_tokens <= 0:
+            return 0.0
+        return round((token_count / total_chat_tokens) * 100.0, 2)
+
+    def _estimated_token_cost_usd(token_count: int) -> float:
+        return round(
+            token_count / 1000.0 * ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS,
+            2,
+        )
+
+    cost_driver_limit = max(1, min(top_n, 50))
+    top_user_cost_drivers_raw = fetch_top_user_token_drivers(
+        start=start,
+        end=end,
+        db_session=db_session,
+        limit=cost_driver_limit,
+    )
+    top_assistant_cost_drivers_raw = fetch_top_assistant_token_drivers(
+        start=start,
+        end=end,
+        db_session=db_session,
+        limit=cost_driver_limit,
+    )
 
     top_users_raw = fetch_top_user_usage(
         start=start,
@@ -464,6 +523,11 @@ def get_admin_dashboard(
         if using_openai_org_costs
         else round(llm_cost_total_cents / 100.0, 2)
     )
+    cost_driver_note = (
+        "Cost driver allocation is directional: it estimates chat cost using message "
+        "token share (user + assistant tokens) at "
+        f"${ANALYTICS_ESTIMATED_CHAT_COST_USD_PER_1K_TOKENS:.4f} per 1K tokens."
+    )
 
     return AdminDashboardResponse(
         total_messages=total_messages,
@@ -494,6 +558,33 @@ def get_admin_dashboard(
             )
             for period_start, user_id, user_email, message_count in top_user_usage_series_raw
         ],
+        cost_driver_breakdown=DashboardCostDriverBreakdown(
+            total_chat_tokens=total_chat_tokens,
+            estimated_chat_cost_basis_usd=estimated_chat_cost_basis_usd,
+            user_drivers=[
+                DashboardUserCostDriver(
+                    user_id=str(user_id),
+                    user_email=user_email,
+                    message_count=message_count,
+                    token_count=token_count,
+                    token_share_percent=_token_share_percent(token_count),
+                    estimated_cost_usd=_estimated_token_cost_usd(token_count),
+                )
+                for user_id, user_email, message_count, token_count in top_user_cost_drivers_raw
+            ],
+            assistant_drivers=[
+                DashboardAssistantCostDriver(
+                    assistant_id=assistant_id,
+                    assistant_name=assistant_name,
+                    response_count=response_count,
+                    token_count=token_count,
+                    token_share_percent=_token_share_percent(token_count),
+                    estimated_cost_usd=_estimated_token_cost_usd(token_count),
+                )
+                for assistant_id, assistant_name, response_count, token_count in top_assistant_cost_drivers_raw
+            ],
+            note=cost_driver_note,
+        ),
         selected_interval=interval,
         cost_note=llm_cost_note,
         byok_estimation_note=byok_estimation_note,

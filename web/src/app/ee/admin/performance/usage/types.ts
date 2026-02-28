@@ -41,6 +41,32 @@ export interface DashboardUserUsagePoint {
   message_count: number;
 }
 
+export interface DashboardUserCostDriver {
+  user_id: string;
+  user_email: string;
+  message_count: number;
+  token_count: number;
+  token_share_percent: number;
+  estimated_cost_usd: number;
+}
+
+export interface DashboardAssistantCostDriver {
+  assistant_id: number | null;
+  assistant_name: string;
+  response_count: number;
+  token_count: number;
+  token_share_percent: number;
+  estimated_cost_usd: number;
+}
+
+export interface DashboardCostDriverBreakdown {
+  total_chat_tokens: number;
+  estimated_chat_cost_basis_usd: number;
+  user_drivers: DashboardUserCostDriver[];
+  assistant_drivers: DashboardAssistantCostDriver[];
+  note: string;
+}
+
 export interface AdminDashboardAnalytics {
   total_messages: number;
   total_unique_users: number;
@@ -51,6 +77,7 @@ export interface AdminDashboardAnalytics {
   cost_series: DashboardCostSeriesPoint[];
   top_users: DashboardTopUser[];
   top_user_usage_series: DashboardUserUsagePoint[];
+  cost_driver_breakdown: DashboardCostDriverBreakdown;
   selected_interval: "week" | "month";
   cost_note: string;
   byok_estimation_note: string;

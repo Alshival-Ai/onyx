@@ -30,6 +30,7 @@ import { ExpandedTimelineContent } from "./ExpandedTimelineContent";
 import { CollapsedStreamingContent } from "./CollapsedStreamingContent";
 import { TimelineRoot } from "@/app/app/message/messageComponents/timeline/primitives/TimelineRoot";
 import { TimelineHeaderRow } from "@/app/app/message/messageComponents/timeline/primitives/TimelineHeaderRow";
+import { useAppBackground } from "@/providers/AppBackgroundProvider";
 
 // =============================================================================
 // Private Wrapper Components
@@ -130,6 +131,7 @@ export const AgentTimeline = React.memo(function AgentTimeline({
   generatedImageCount = 0,
   toolProcessingDuration,
 }: AgentTimelineProps) {
+  const { hasBackground } = useAppBackground();
   // Header text and state flags
   const { headerText, hasPackets, userStopped } = useTimelineHeader(
     turnGroups,
@@ -372,8 +374,8 @@ export const AgentTimeline = React.memo(function AgentTimeline({
         <div
           className={cn(
             "flex flex-1 min-w-0 h-full items-center justify-between p-1 rounded-t-12 transition-colors duration-300",
-            headerIsInteractive && "hover:bg-background-tint-00",
-            showTintedBackground && "bg-background-tint-00",
+            !hasBackground && headerIsInteractive && "hover:bg-background-tint-00",
+            !hasBackground && showTintedBackground && "bg-background-tint-00",
             showRoundedBottom && "rounded-b-12"
           )}
         >

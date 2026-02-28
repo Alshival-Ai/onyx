@@ -125,6 +125,10 @@ export interface CodaCredentialJson {
   coda_bearer_token: string;
 }
 
+export interface CanvaCredentialJson {
+  canva_access_token: string;
+}
+
 export interface NotionCredentialJson {
   notion_integration_token: string;
 }
@@ -312,6 +316,7 @@ export const credentialTemplates: Record<ValidSources, any> = {
   productboard: { productboard_access_token: "" } as ProductboardCredentialJson,
   slab: { slab_bot_token: "" } as SlabCredentialJson,
   coda: { coda_bearer_token: "" } as CodaCredentialJson,
+  canva: { canva_access_token: "" } as CanvaCredentialJson,
   notion: { notion_integration_token: "" } as NotionCredentialJson,
   guru: { guru_user: "", guru_user_token: "" } as GuruCredentialJson,
   gong: {
@@ -535,6 +540,9 @@ export const credentialDisplayNames: Record<string, string> = {
 
   // Coda
   coda_bearer_token: "Coda Bearer Token",
+
+  // Canva
+  canva_access_token: "Canva Access Token",
 
   // Notion
   notion_integration_token: "Notion Integration Token",

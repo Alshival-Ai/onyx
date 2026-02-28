@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DateRangePickerValue } from "@/components/dateRangeSelectors/AdminDateRangeSelector";
 import CardSection from "@/components/admin/CardSection";
 import { useAdminDashboardAnalytics } from "../lib";
@@ -18,19 +18,46 @@ import {
 import Button from "@/refresh-components/buttons/Button";
 import Text from "@/refresh-components/texts/Text";
 import { humanReadableFormatWithTime, timeAgo } from "@/lib/time";
+import type { DashboardTopUser } from "@/app/ee/admin/performance/usage/types";
+import SimpleTooltip from "@/refresh-components/SimpleTooltip";
 
 interface ExecutiveDashboardProps {
   timeRange: DateRangePickerValue;
+  interval: DashboardInterval;
+  topUsersLimit: number;
+  userSortBy: DashboardUserSortBy;
 }
+
+export type DashboardInterval = "week" | "month";
+export type DashboardUserSortBy =
+  | "message_count"
+  | "token_count"
+  | "recent_login";
 
 interface MetricCardProps {
   title: string;
   value: string;
   subtitle?: string;
+  titleTooltip?: string;
 }
 
 const COST_SERIES_COLORS = ["#1D4ED8", "#0F766E"];
-const USAGE_SERIES_COLORS = ["#1D4ED8", "#0F766E", "#334155", "#0369A1", "#78350F"];
+const USAGE_SERIES_COLORS = [
+  "#1D4ED8",
+  "#0F766E",
+  "#334155",
+  "#0369A1",
+  "#78350F",
+  "#7C3AED",
+  "#0E7490",
+  "#B45309",
+];
+
+const USER_SORT_LABEL: Record<DashboardUserSortBy, string> = {
+  message_count: "message volume",
+  token_count: "token volume",
+  recent_login: "recent login",
+};
 
 const integerFormatter = new Intl.NumberFormat("en-US", {
   notation: "standard",
@@ -49,6 +76,10 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
+function applyBrandingCopy(text: string): string {
+  return text.replace(/\bonyx\b/gi, "StarwoodGPT");
+}
 
 function formatPeriodLabel(periodStart: string, interval: "week" | "month") {
   const date = new Date(periodStart);
@@ -78,16 +109,58 @@ function formatLastLogin(lastLogin: string | null): string {
   return `${humanReadableFormatWithTime(lastLogin)} (${relative})`;
 }
 
+function sortTopUsers(
+  users: DashboardTopUser[],
+  userSortBy: DashboardUserSortBy
+): DashboardTopUser[] {
+  const sortedUsers = [...users];
+  if (userSortBy === "message_count") {
+    sortedUsers.sort((left, right) => right.message_count - left.message_count);
+    return sortedUsers;
+  }
+
+  if (userSortBy === "token_count") {
+    sortedUsers.sort((left, right) => right.token_count - left.token_count);
+    return sortedUsers;
+  }
+
+  sortedUsers.sort((left, right) => {
+    if (!left.last_login && !right.last_login) {
+      return 0;
+    }
+    if (!left.last_login) {
+      return 1;
+    }
+    if (!right.last_login) {
+      return -1;
+    }
+    return new Date(right.last_login).getTime() - new Date(left.last_login).getTime();
+  });
+  return sortedUsers;
+}
+
 function MetricCard({
   title,
   value,
   subtitle,
+  titleTooltip,
 }: MetricCardProps) {
   return (
     <div className="rounded-12 border border-border-02 bg-background-neutral-00 p-4">
-      <Text secondaryBody text03>
-        {title}
-      </Text>
+      <div className="flex items-center gap-1">
+        <Text secondaryBody text03>
+          {title}
+        </Text>
+        {titleTooltip ? (
+          <SimpleTooltip tooltip={titleTooltip} side="top">
+            <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-border-03 px-1 cursor-help">
+              <Text as="span" secondaryMono text03>
+                ?
+              </Text>
+            </span>
+          </SimpleTooltip>
+        ) : null}
+      </div>
       <Text headingH3 className="pt-2">
         {value}
       </Text>
@@ -100,15 +173,18 @@ function MetricCard({
   );
 }
 
-export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
-  const [interval, setInterval] = useState<"week" | "month">("week");
-
+export function ExecutiveDashboard({
+  timeRange,
+  interval,
+  topUsersLimit,
+  userSortBy,
+}: ExecutiveDashboardProps) {
   const {
     data,
     isLoading,
     error,
     refreshDashboardAnalytics,
-  } = useAdminDashboardAnalytics(timeRange, interval, 10);
+  } = useAdminDashboardAnalytics(timeRange, interval, topUsersLimit);
 
   const positiveFeedbackRate = useMemo(() => {
     if (!data) {
@@ -123,6 +199,13 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
     return (data.total_likes / totalFeedback) * 100;
   }, [data]);
 
+  const sortedTopUsers = useMemo(() => {
+    if (!data?.top_users.length) {
+      return [];
+    }
+    return sortTopUsers(data.top_users, userSortBy);
+  }, [data, userSortBy]);
+
   const costChartData = useMemo(() => {
     if (!data) {
       return [];
@@ -130,7 +213,7 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
 
     return data.cost_series.map((point) => ({
       Period: point.period_start,
-      "Tracked Onyx Cost (USD)": point.llm_cost_usd,
+      "Tracked StarwoodGPT Cost (USD)": point.llm_cost_usd,
       "Estimated BYOK Cost (USD)": point.estimated_byok_cost_usd,
     }));
   }, [data]);
@@ -143,10 +226,12 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
       };
     }
 
-    const selectedUsers = data.top_users.slice(0, 5).map((user, index) => ({
-      id: user.user_id,
-      label: `${index + 1}. ${user.user_email}`,
-    }));
+    const selectedUsers = sortedTopUsers
+      .slice(0, Math.min(sortedTopUsers.length, USAGE_SERIES_COLORS.length))
+      .map((user, index) => ({
+        id: user.user_id,
+        label: `${index + 1}. ${user.user_email}`,
+      }));
 
     const userIdToCategory = new Map(
       selectedUsers.map((selectedUser) => [selectedUser.id, selectedUser.label])
@@ -186,7 +271,7 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
       });
 
     return { categories, rows };
-  }, [data]);
+  }, [data, sortedTopUsers]);
 
   return (
     <CardSection className="mt-6 border-border-02 bg-background-tint-00">
@@ -196,28 +281,14 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
           <Text mainUiMuted text03 className="pt-1">
             Workspace adoption, AI spending, and heavy users in one place.
           </Text>
+          <Text secondaryBody text03 className="pt-1">
+            {interval === "week" ? "Weekly" : "Monthly"} cadence • Top{" "}
+            {topUsersLimit} users • Sorted by {USER_SORT_LABEL[userSortBy]}.
+          </Text>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="md"
-            primary={interval === "week"}
-            secondary={interval !== "week"}
-            onClick={() => setInterval("week")}
-          >
-            Weekly
-          </Button>
-          <Button
-            size="md"
-            primary={interval === "month"}
-            secondary={interval !== "month"}
-            onClick={() => setInterval("month")}
-          >
-            Monthly
-          </Button>
-          <Button size="md" secondary onClick={() => refreshDashboardAnalytics()}>
-            Refresh
-          </Button>
-        </div>
+        <Button size="md" secondary onClick={() => refreshDashboardAnalytics()}>
+          Refresh
+        </Button>
       </div>
 
       {isLoading ? (
@@ -239,12 +310,13 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
             <MetricCard
               title="Tracked AI Cost"
               value={currencyFormatter.format(data.total_llm_cost_usd)}
-              subtitle="Tracked Onyx provider usage"
+              subtitle="Tracked StarwoodGPT provider usage"
             />
             <MetricCard
               title="Estimated BYOK Cost"
               value={currencyFormatter.format(data.total_estimated_byok_cost_usd)}
               subtitle="Directional estimate from chat tokens"
+              titleTooltip="BYOK means Bring Your Own Key. If your team uses its own model/API keys instead of StarwoodGPT-managed keys, this is the estimated spend for that usage."
             />
             <MetricCard
               title="Assistant Messages"
@@ -273,16 +345,16 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
                 AI Cost Over Time
               </Text>
               <Text secondaryBody text04>
-                {data.cost_note}
+                {applyBrandingCopy(data.cost_note)}
               </Text>
               <Text secondaryBody text04 className="pt-1">
-                {data.byok_estimation_note}
+                {applyBrandingCopy(data.byok_estimation_note)}
               </Text>
               <AreaChartDisplay
                 className="mt-2"
                 data={costChartData}
                 categories={[
-                  "Tracked Onyx Cost (USD)",
+                  "Tracked StarwoodGPT Cost (USD)",
                   "Estimated BYOK Cost (USD)",
                 ]}
                 index="Period"
@@ -299,7 +371,8 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
                 Top Users Activity
               </Text>
               <Text secondaryBody text04>
-                Message volume by top users ({interval} buckets)
+                Message volume by top-ranked users ({interval} buckets), ordered by{" "}
+                {USER_SORT_LABEL[userSortBy]}.
               </Text>
 
               {topUsageChart.rows.length > 0 && topUsageChart.categories.length > 0 ? (
@@ -328,6 +401,118 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
           </div>
 
           <div className="pt-5">
+            <Text mainUiAction className="pb-1">
+              Cost Driver Breakdown
+            </Text>
+            <Text secondaryBody text04>
+              {applyBrandingCopy(data.cost_driver_breakdown.note)}
+            </Text>
+            <div className="grid gap-3 pt-3 md:grid-cols-2">
+              <MetricCard
+                title="Chat Tokens in Range"
+                value={integerFormatter.format(
+                  data.cost_driver_breakdown.total_chat_tokens
+                )}
+              />
+              <MetricCard
+                title="Estimated Chat Cost Basis"
+                value={currencyFormatter.format(
+                  data.cost_driver_breakdown.estimated_chat_cost_basis_usd
+                )}
+                subtitle="Directional token-based estimate"
+              />
+            </div>
+
+            <div className="grid gap-4 pt-4 xl:grid-cols-2">
+              <div className="rounded-12 border border-border-02 bg-background-neutral-00 p-1">
+                <Text mainUiAction className="px-2 pb-2 pt-2">
+                  Top User Cost Drivers
+                </Text>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Tokens</TableHead>
+                      <TableHead>Token Share</TableHead>
+                      <TableHead>Estimated Cost</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.cost_driver_breakdown.user_drivers.length ? (
+                      data.cost_driver_breakdown.user_drivers.map((driver) => (
+                        <TableRow key={driver.user_id}>
+                          <TableCell>{driver.user_email}</TableCell>
+                          <TableCell>
+                            {integerFormatter.format(driver.token_count)}
+                          </TableCell>
+                          <TableCell>
+                            {decimalFormatter.format(driver.token_share_percent)}%
+                          </TableCell>
+                          <TableCell>
+                            {currencyFormatter.format(driver.estimated_cost_usd)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow noHover>
+                        <TableCell colSpan={4} className="text-center">
+                          <Text mainUiMuted text03>
+                            No user cost-driver data in this range.
+                          </Text>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="rounded-12 border border-border-02 bg-background-neutral-00 p-1">
+                <Text mainUiAction className="px-2 pb-2 pt-2">
+                  Top Assistant Cost Drivers
+                </Text>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Assistant</TableHead>
+                      <TableHead>Tokens</TableHead>
+                      <TableHead>Token Share</TableHead>
+                      <TableHead>Estimated Cost</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.cost_driver_breakdown.assistant_drivers.length ? (
+                      data.cost_driver_breakdown.assistant_drivers.map((driver) => (
+                        <TableRow
+                          key={`${driver.assistant_id ?? "default"}-${driver.assistant_name}`}
+                        >
+                          <TableCell>{driver.assistant_name}</TableCell>
+                          <TableCell>
+                            {integerFormatter.format(driver.token_count)}
+                          </TableCell>
+                          <TableCell>
+                            {decimalFormatter.format(driver.token_share_percent)}%
+                          </TableCell>
+                          <TableCell>
+                            {currencyFormatter.format(driver.estimated_cost_usd)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow noHover>
+                        <TableCell colSpan={4} className="text-center">
+                          <Text mainUiMuted text03>
+                            No assistant cost-driver data in this range.
+                          </Text>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-5">
             <Text mainUiAction className="pb-2">
               Top Users
             </Text>
@@ -345,8 +530,8 @@ export function ExecutiveDashboard({ timeRange }: ExecutiveDashboardProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.top_users.length ? (
-                    data.top_users.map((user, index) => (
+                  {sortedTopUsers.length ? (
+                    sortedTopUsers.map((user, index) => (
                       <TableRow key={user.user_id}>
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>{user.user_email}</TableCell>

@@ -42,6 +42,8 @@ export interface Settings {
 
   // Global chat background setting
   chat_background?: string | null;
+  // Global chat text color override for chat content area
+  chat_text_color?: string | null;
 
   // StarwoodGPT Craft (Build Mode) feature flag
   onyx_craft_enabled?: boolean;

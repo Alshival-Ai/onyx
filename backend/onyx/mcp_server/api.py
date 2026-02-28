@@ -32,6 +32,7 @@ mcp_server = FastMCP(
 
 # Import tools and resources AFTER mcp_server is created to avoid circular imports
 # Components register themselves via decorators on the shared mcp_server instance
+from onyx.mcp_server.tools import canva  # noqa: E402, F401
 from onyx.mcp_server.tools import search  # noqa: E402, F401
 from onyx.mcp_server.tools import starwood_productivity  # noqa: E402, F401
 from onyx.mcp_server.resources import indexed_sources  # noqa: E402, F401
